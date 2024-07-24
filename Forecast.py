@@ -2,9 +2,8 @@ from os import path, mkdir
 
 import numpy as np
 import pandas as pd
-from matplotlib import pyplot as plt
 
-from ForecastData import ForecastData
+from helpers import my_filename
 from Parsers.ForecaParser import ForecaParser
 from Parsers.GismeteoParser import GismeteoParser
 from Parsers.OpenMeteo import get_open_meteo
@@ -48,11 +47,6 @@ class Forecast:
             gismeteo = executor.submit(self.__gismeteo.get_weather_tomorrow)
             openmeteo = executor.submit(get_open_meteo, 2)
 
-        # foreca = foreca.result()
-        # gismeteo = gismeteo.result()
-        # openmeteo = openmeteo.result()
-        #
-        # openmeteo_aligned = openmeteo[]
 
         return foreca.result(), gismeteo.result(), openmeteo.result()
 
@@ -74,10 +68,20 @@ class Forecast:
                                                                     "wind-speed"])
         prob = pd.DataFrame({"time": openmeteo["time"], "precipitation-probability": nested_forecast[2][1]})
         foreca, gis = nested_forecast[0], nested_forecast[1]
+
+        # stregth = np.random.uniform(7, 18, size=3)
+        # peak = np.random.uniform(6,18, size=3)
+        # length = np.random.uniform(2,5, size=3)
+        #
+        # foreca["precipitation"]=np.exp(-np.power(np.arange(0,len(foreca))-peak[0],2)/length[0])*stregth[0]
+        # gis["precipitation"]=np.exp(-np.power(np.arange(0,24,3)-peak[1],2)/length[1])*stregth[1]
+        # openmeteo["precipitation"]=np.exp(-np.power(np.arange(0,24)-peak[2],2)/length[2])*stregth[2]
+
         foreca = foreca.rename(columns=lambda x: x if x == "time" else "foreca_" + x)
         gis = gis.rename(columns=lambda x: x if x == "time" else "gismeteo_" + x)
         openmeteo = openmeteo.rename(columns=lambda x: x if x == "time" else "openmeteo_" + x)
-        combined = pd.merge(foreca, openmeteo, on="time")
+
+        combined = pd.merge(foreca, openmeteo, on="time", how="outer")
         combined = pd.merge(combined, gis, on="time", how="left")
         combined = pd.merge(combined, prob, on="time")
         combined = combined.interpolate(method="linear")
@@ -88,7 +92,7 @@ class Forecast:
     def fetch_forecast(self, day) -> pd.DataFrame:
         date = datetime.today() + timedelta(days=day - 1)
         folder = "forecast"
-        filename = f"{folder}/{date.strftime('%Y%m%d')}.csv"
+        filename = f"{folder}/{my_filename(day)}.csv"
         if path.exists(folder):
             if path.exists(filename):
                 combined = pd.read_csv(filename, dtype=np.float64, index_col="time")
@@ -104,14 +108,4 @@ class Forecast:
         print(f"new data saved at '{filename}'")
         return data
 
-    # def show(self, full_forecast):
-    #     colors = ["green", "blue", "red"]
-    #     plt.figure(figsize=(8, 6))  # Set the figure size
-    #     data = self.get_pandas(day, asnc)
-    #     for i in range(len(colors)):
-    #         plt.plot(data[i]["time"], data[i]["temperature"], marker='o', linestyle='-', color=colors[i],
-    #                  label=ForecastData.source_names[i])
-    #
-    #     plt.grid(True)
-    #     plt.legend()
-    #     plt.show()
+
