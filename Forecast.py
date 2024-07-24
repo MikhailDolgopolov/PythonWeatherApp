@@ -3,6 +3,8 @@ from os import path, mkdir
 import numpy as np
 import pandas as pd
 from matplotlib import pyplot as plt
+
+from ForecastData import ForecastData
 from Parsers.ForecaParser import ForecaParser
 from Parsers.GismeteoParser import GismeteoParser
 from Parsers.OpenMeteo import get_open_meteo
@@ -20,7 +22,6 @@ class Forecast:
         self.__foreca = ForecaParser()
         self.__gismeteo = GismeteoParser()
 
-        self.__names = ["Foreca", "Gismeteo", "OpenMeteo"]
 
     def get_raw_today(self):
         return self.__foreca.get_weather_today(), self.__gismeteo.get_weather_today(), get_open_meteo(1)
@@ -47,6 +48,12 @@ class Forecast:
             gismeteo = executor.submit(self.__gismeteo.get_weather_tomorrow)
             openmeteo = executor.submit(get_open_meteo, 2)
 
+        # foreca = foreca.result()
+        # gismeteo = gismeteo.result()
+        # openmeteo = openmeteo.result()
+        #
+        # openmeteo_aligned = openmeteo[]
+
         return foreca.result(), gismeteo.result(), openmeteo.result()
 
     def get_pandas(self, day=2, asnc=True):
@@ -58,19 +65,33 @@ class Forecast:
         end = time.time()
 
         print(f"With async={asnc} gathering weather has taken {end - start} seconds")
-        for i in range(len(nested_forecast)):
+
+        for i in range(2):
             nested_forecast[i] = pd.DataFrame.from_records(nested_forecast[i],
                                                            columns=["time", "temperature", "precipitation",
                                                                     "wind-speed"]).astype(float)
-        return nested_forecast
+        openmeteo = pd.DataFrame.from_records(nested_forecast[2][0], columns=["time", "temperature", "precipitation",
+                                                                    "wind-speed"])
+        prob = pd.DataFrame({"time": openmeteo["time"], "precipitation-probability": nested_forecast[2][1]})
+        foreca, gis = nested_forecast[0], nested_forecast[1]
+        foreca = foreca.rename(columns=lambda x: x if x == "time" else "foreca_" + x)
+        gis = gis.rename(columns=lambda x: x if x == "time" else "gismeteo_" + x)
+        openmeteo = openmeteo.rename(columns=lambda x: x if x == "time" else "openmeteo_" + x)
+        combined = pd.merge(foreca, openmeteo, on="time")
+        combined = pd.merge(combined, gis, on="time", how="left")
+        combined = pd.merge(combined, prob, on="time")
+        combined = combined.interpolate(method="linear")
+        combined = combined.set_index("time")
 
-    def fetch_forecast(self, day):
+        return combined
+
+    def fetch_forecast(self, day) -> pd.DataFrame:
         date = datetime.today() + timedelta(days=day - 1)
         folder = "forecast"
         filename = f"{folder}/{date.strftime('%Y%m%d')}.csv"
         if path.exists(folder):
             if path.exists(filename):
-                combined = pd.read_csv(filename, dtype=np.float64)
+                combined = pd.read_csv(filename, dtype=np.float64, index_col="time")
                 print("saved data found")
                 return combined
             else:
@@ -78,20 +99,10 @@ class Forecast:
         else:
             print("no saved data found")
             mkdir(folder)
-        nested = self.get_pandas(day)
-        foreca, gis, openmeteo = nested
-        gis = gis.rename(columns=lambda x: x if x=="time" else "gismeteo_" + x)
-        data = {"time":openmeteo["time"]}
-        cols = openmeteo.columns.drop("time")
-        for s in range(0, 3, 2):
-            for col in cols:
-                data[f"{self.__names[s].lower()}_{col}"] = nested[s][col]
-        combined = pd.DataFrame(data = data)
-        combined = pd.merge(combined, gis, on="time", how="left")
-        combined = combined.interpolate(method="linear")
-
-        combined.to_csv(index=True, path_or_buf=filename)
+        data = self.get_pandas(day)
+        data.to_csv(path_or_buf=filename, index_label="time", index=True)
         print(f"new data saved at '{filename}'")
+        return data
 
     # def show(self, full_forecast):
     #     colors = ["green", "blue", "red"]
@@ -99,7 +110,7 @@ class Forecast:
     #     data = self.get_pandas(day, asnc)
     #     for i in range(len(colors)):
     #         plt.plot(data[i]["time"], data[i]["temperature"], marker='o', linestyle='-', color=colors[i],
-    #                  label=self.__names[i])
+    #                  label=ForecastData.source_names[i])
     #
     #     plt.grid(True)
     #     plt.legend()

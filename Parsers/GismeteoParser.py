@@ -4,7 +4,6 @@ from selenium import webdriver
 from selenium.webdriver.common.by import By
 from bs4 import BeautifulSoup
 
-from DailyWeather import DailyWeather
 from Parsers.BaseParser import BaseParser
 import time
 

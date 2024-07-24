@@ -3,6 +3,7 @@ import pandas as pd
 from matplotlib import pyplot as plt
 from numpy import dtype
 
+from ForecastData import ForecastData
 from ForecastRendering import ForecastRendering
 from Forecast import Forecast
 import time
@@ -13,7 +14,7 @@ pd.set_option('display.max_colwidth', 50)  # Set the max column width to 50 char
 
 forecast = Forecast()
 start = time.time()
-data = forecast.fetch_forecast(2)
+data = ForecastData(forecast.fetch_forecast(2))
 end = time.time()
 print(f"fetching took {end-start} seconds")
-rendering = ForecastRendering(data)
+

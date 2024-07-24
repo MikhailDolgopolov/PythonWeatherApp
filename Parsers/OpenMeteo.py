@@ -56,5 +56,6 @@ def get_open_meteo(day = 1):
 	if day==2:
 		start_index = len(arr) // 2
 		arr=arr[start_index:]
-	return arr
+		hourly_precipitation_probability = hourly_precipitation_probability[start_index:]
+	return arr, hourly_precipitation_probability
 

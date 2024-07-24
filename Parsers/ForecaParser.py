@@ -5,7 +5,7 @@ from selenium import webdriver
 from selenium.webdriver.common.by import By
 from bs4 import BeautifulSoup
 
-from DailyWeather import DailyWeather
+
 from Parsers.BaseParser import BaseParser
 
 
@@ -28,7 +28,6 @@ class ForecaParser(BaseParser):
             return None
 
     def get_weather(self, date):
-        new_day = DailyWeather(date)
         soup = self.parse_date(date)
         table = soup.find("div", class_="hourContainer")
         data = [[row.find("span", "time_24h").text,
