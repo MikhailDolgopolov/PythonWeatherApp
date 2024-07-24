@@ -18,3 +18,5 @@ data = ForecastData(forecast.fetch_forecast(2))
 end = time.time()
 print(f"fetching took {end-start} seconds")
 
+ForecastRendering().show_data(data)
+
