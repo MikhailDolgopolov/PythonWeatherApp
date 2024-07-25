@@ -1,20 +1,19 @@
 import os.path
 import os
-import pathlib
 from glob import glob
 from datetime import datetime, timedelta
 import re
 
 
-def clean_old_files():
+def delete_old_files():
     folders = ["forecast", "Images"]
-    date = datetime.today()-timedelta(days=1)
+    date = datetime.today() - timedelta(days=1)
     number = int(date.strftime("%Y%m%d"))
-    to_delete=[]
+    to_delete = []
     for folder in folders:
         for file in glob(f'{folder}\\*.*'):
             match = re.search(r'\d+', file)
-            if match and int(match.group())<number:
+            if match and int(match.group()) < number:
                 to_delete.append(file)
     for p in to_delete:
         os.remove(p)

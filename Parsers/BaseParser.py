@@ -8,7 +8,7 @@ class BaseParser:
     def __init__(self):
         options = webdriver.ChromeOptions()
         options.add_argument("--headless")
-        self.driver:WebDriver = webdriver.Chrome(executable_path="mychromedriver.exe", options=options)
+        self.driver: WebDriver = webdriver.Chrome(executable_path="mychromedriver.exe", options=options)
         # self.driver.maximize_window()
 
     def get_weather(self, date):

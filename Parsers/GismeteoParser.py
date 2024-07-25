@@ -9,6 +9,7 @@ from tqdm import tqdm
 from Parsers.BaseParser import BaseParser
 import time
 
+
 class GismeteoParser(BaseParser):
     def __init__(self):
         self.__url = "https://www.gismeteo.ru/weather-lytkarino-12640/"
@@ -17,10 +18,11 @@ class GismeteoParser(BaseParser):
     def parse_page(self, date) -> BeautifulSoup | None:
         today = datetime.datetime.today()
         self.driver.get(self.__url)
-        diff = (date.date()-today.date()).days
-        if diff==0:
+        diff = (date.date() - today.date()).days
+        if diff == 0:
             return BeautifulSoup(self.driver.page_source, "lxml")
-        if diff==1:
+        if diff == 1:
+            # noinspection PyBroadException
             try:
                 tomorrow = self.driver.find_element(By.XPATH, "/html/body/main/div[1]/section[2]/div/a[2]")
             except:
@@ -45,5 +47,4 @@ class GismeteoParser(BaseParser):
         wind = [list(w.strings) for w in wind_row_items]
         wind = [int(item) if item.isdigit() else 0 for sublist in tqdm(wind) for item in sublist]
 
-        return [[clocks[i],int(temps[i]), float(mm_percp[i].replace(",", ".")), wind[i]] for i in range(len(clocks))]
-
+        return [[clocks[i], int(temps[i]), float(mm_percp[i].replace(",", ".")), wind[i]] for i in range(len(clocks))]

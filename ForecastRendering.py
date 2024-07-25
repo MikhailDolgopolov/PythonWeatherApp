@@ -2,15 +2,13 @@ from datetime import datetime, timedelta
 
 import pandas as pd
 import numpy as np
-import math as m
+
 from matplotlib import pyplot as plt
 import seaborn as sns
 
-sns.set_style("whitegrid")
-
 from ForecastData import ForecastData
-from helpers import my_filename
 
+sns.set_style("whitegrid")
 pd.set_option('display.width', 200)  # Increase the width to 200 characters
 pd.set_option('display.max_columns', 10)  # Increase the number of columns to display to 10
 pd.set_option('display.max_colwidth', 50)  # Set the max column width to 50 characters
@@ -48,7 +46,8 @@ def render_forecast_data(data: ForecastData, sources: list[str] = None):
 
     structure = "".join(sorted([s.lower()[0] for s in sources]))
     sources.append("mean")
-
+    day = data.day
+    print(f"Rendering for {day.full_date}")
     fig, ax1 = plt.subplots(figsize=(6, 5))
     Xaxis = data.time
     main_plot = "temperature"
@@ -56,7 +55,7 @@ def render_forecast_data(data: ForecastData, sources: list[str] = None):
         if s == "mean": continue
         plt.plot(Xaxis, data.get_source(s)[main_plot], linestyle='-', color=data.colormap[s], label=s)
     if "mean" in sources:
-        plt.fill_between(Xaxis, data.mean_values[main_plot] - 1, data.mean_values[main_plot] + 1, color=[0.5] * 4)
+        plt.plot(Xaxis, data.mean_values[main_plot], color=[0.4]*4, linewidth=25)
     ax1.set_xlabel("Время, ч")
     ax1.set_ylabel("Температура, °C")
     plt.legend()
@@ -83,7 +82,6 @@ def render_forecast_data(data: ForecastData, sources: list[str] = None):
         plt.ylim(bottom=ybottom)
 
         step = 3
-        # print(plt.yticks())
         ybottom = int(ybottom) // step * step
         ytop = round(ytop // step) * step
         plt.yticks(np.arange(ybottom, ytop, step))
@@ -93,22 +91,23 @@ def render_forecast_data(data: ForecastData, sources: list[str] = None):
     plt.xticks(Xaxis)
 
     first_tick = plt.yticks()[0][1]
-    if not data.precipitation_exists and first_tick > 0:
-        plt.plot(Xaxis, [first_tick] * 24, color="black")
-    plt.title(f"Прогноз на {data.accs_name}", y=1.05)
+    # if not data.precipitation_exists and first_tick > 0:
+        # plt.plot(Xaxis, [first_tick] * 24, color="black")
+    plt.title(f"Прогноз на {day.accs_day_name}, {day.D_month}", y=1.05)
 
-    plt.savefig(f"Images/{my_filename(data.forecast_day)}-{structure}.png", bbox_inches="tight")
-    plt.show()
+    path = f"Images/{day.forecast_name}-{structure}.png"
+    plt.savefig(path, bbox_inches="tight", dpi=600)
+    # plt.show()
     plt.close()
+    return {"path": path, "day": day}
 
 
 def compare_history(d=1, column="temperature"):
-
     start = datetime.today() + timedelta(days=d - 2)
     number = start.strftime("%Y%m%d")
     archived_path = f"archive/{number}.csv"
     forecast_path = f"forecast/{number}-tomorrow.csv"
-    Xaxis = np.arange(0,24)
+    Xaxis = np.arange(0, 24)
     archived = pd.read_csv(archived_path, dtype=np.float64, index_col="time")[column]
     forecast_table = pd.read_csv(forecast_path, dtype=np.float64, index_col="time")
     selected_columns = forecast_table.filter(regex=f'_{column}$')
@@ -123,7 +122,4 @@ def compare_history(d=1, column="temperature"):
     ax1.set_xlabel("Время, ч")
     ax1.set_ylabel("Температура, °C")
     plt.legend()
-
     plt.show()
-
-

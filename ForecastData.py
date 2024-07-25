@@ -1,4 +1,3 @@
-import locale
 from pprint import pprint
 
 import numpy as np
@@ -6,11 +5,11 @@ import pandas as pd
 
 from datetime import datetime, timedelta
 
+from Day import Day
 from Forecast import Forecast
-from helpers import my_filename
 
-locale.setlocale(locale.LC_TIME, 'ru_RU')
-from pymorphy3 import MorphAnalyzer
+
+
 
 class ForecastData:
 
@@ -18,15 +17,9 @@ class ForecastData:
     def source_names(self):
         return ["Foreca", "Gismeteo", "OpenMeteo"]
 
-    def __init__(self, forecast:Forecast, day:int):
+    def __init__(self, forecast:Forecast, day:Day):
         self.colormap = {"Foreca":"green", "Gismeteo":"blue", "OpenMeteo":"red"}
-        self.forecast_day=day
-
-        date = datetime.today() + timedelta(days=day - 1)
-        day_name = date.strftime("%A")
-        morph = MorphAnalyzer()
-        month_name = morph.parse(date.strftime("%B").lower())[0].inflect({'gent'}).word
-        self.accs_name = f"{morph.parse(day_name)[0].inflect({'accs'}).word}, {date.strftime('%d')} {month_name}"
+        self.day = day
         full_data = forecast.fetch_forecast(day)
         columns = full_data.columns.drop(["precipitation-probability"])
         factors_set = set()
@@ -52,7 +45,6 @@ class ForecastData:
             selected_columns = full_data.filter(regex=f'_{suffix}$')
             self.mean_values[suffix] = selected_columns.mean(axis=1)
 
-
         prec_count = np.count_nonzero(self.mean_values["precipitation"])
         prob_count = np.count_nonzero(np.where(self.precipitation_probability>1, 1,0))*100
         prec_per_hour = 0 if prec_count==0 else sum(self.mean_values["precipitation"])/prec_count
@@ -60,7 +52,7 @@ class ForecastData:
         self.precipitation_exists = prob_per_hour*prec_per_hour>0.01
 
         if day == 1:
-            pd.DataFrame(data=self.mean_values).to_csv(path_or_buf=f"archive/{my_filename(1, True)}.csv", index_label="time", index=True)
+            pd.DataFrame(data=self.mean_values).to_csv(path_or_buf=f"archive/{day.short_date}.csv", index_label="time", index=True)
 
     def get_one(self, index):
         return self.__dict[self.source_names[index]]

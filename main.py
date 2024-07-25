@@ -3,21 +3,27 @@ import pandas as pd
 from matplotlib import pyplot as plt
 from numpy import dtype
 
+from Day import Day
 from ForecastData import ForecastData
 from ForecastRendering import render_forecast_data, compare_history
 from Forecast import Forecast
-from FileManager import clean_old_files
+from FileManager import delete_old_files
 import time
 
-# clean_old_files()
-compare_history(2)
-# forecast = Forecast()
-# start = time.time()
-# today = ForecastData(forecast, 1)
-# tomorrow = ForecastData(forecast, 2)
-# end = time.time()
-# print(f"fetching took {end-start} seconds")
-#
-# render_forecast_data(today)
-# render_forecast_data(tomorrow)
+from emails import send_my_email
 
+delete_old_files()
+forecast = Forecast()
+start = time.time()
+today = Day(0)
+tomorrow = Day(1)
+today_forecast = ForecastData(forecast, today)
+tomorrow_forecast = ForecastData(forecast, tomorrow)
+end = time.time()
+print(f"fetching took {end-start} seconds")
+
+
+fig1 = render_forecast_data(today_forecast)
+fig2 = render_forecast_data(tomorrow_forecast)
+
+# send_my_email(fig1, fig2)
