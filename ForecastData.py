@@ -19,6 +19,7 @@ class ForecastData:
         return ["Foreca", "Gismeteo", "OpenMeteo"]
 
     def __init__(self, forecast:Forecast, day:int):
+        self.colormap = {"Foreca":"green", "Gismeteo":"blue", "OpenMeteo":"red"}
         self.forecast_day=day
 
         date = datetime.today() + timedelta(days=day - 1)
@@ -58,12 +59,12 @@ class ForecastData:
         prec_per_hour = 0 if prec_count==0 else sum(self.mean_values["precipitation"])/prec_count
         prob_per_hour = 0 if prob_count==0 else sum(self.precipitation_probability)/prob_count
         self.precipitation_exists = prob_per_hour*prec_per_hour>0.01
-        # print(prec_per_hour*prob_per_hour)
-        # print("sum", sum(self.mean_values["precipitation"])/24)
-        # print("prob sum", sum(self.precipitation_probability)/2400)
 
         if day == 1:
-            pd.DataFrame(data=self.mean_values).to_csv(path_or_buf=f"archive/{my_filename(1, True)}", index_label="time", index=True)
+            pd.DataFrame(data=self.mean_values).to_csv(path_or_buf=f"archive/{my_filename(1, True)}.csv", index_label="time", index=True)
 
     def get_one(self, index):
         return self.__dict[self.source_names[index]]
+
+    def get_source(self, name):
+        return self.__dict[name]
