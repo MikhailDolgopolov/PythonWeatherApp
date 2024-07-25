@@ -47,7 +47,6 @@ class ForecastData:
             self.precp_certainty = 0.666 * np.arctan(self.precipitation_probability * 0.2 * stds / b)
         else:
             self.precp_certainty = stds*0
-        # self.precp_certainty = self.precp_certainty*self.precipitation_probability * 0.1
         self.mean_values = {}
         for suffix in self.factors:
             selected_columns = full_data.filter(regex=f'_{suffix}$')

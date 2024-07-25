@@ -1,18 +1,12 @@
 import smtplib, ssl
-import json
 from email.mime.text import MIMEText
 from email.mime.multipart import MIMEMultipart
 
-
-def read_config(file_path):
-    with open(file_path, 'r') as file:
-        data = json.load(file)
-    return data
-
+from helpers import read_json
 
 # Example usage
 config_path = 'email_secrets.json'
-config = read_config(config_path)
+config = read_json(config_path)
 
 sender_email, receiver_email = config["sender_email"], config["receiver_email"]
 

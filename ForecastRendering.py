@@ -1,3 +1,5 @@
+from datetime import datetime, timedelta
+
 import pandas as pd
 import numpy as np
 import math as m
@@ -98,3 +100,30 @@ def render_forecast_data(data: ForecastData, sources: list[str] = None):
     plt.savefig(f"Images/{my_filename(data.forecast_day)}-{structure}.png", bbox_inches="tight")
     plt.show()
     plt.close()
+
+
+def compare_history(d=1, column="temperature"):
+
+    start = datetime.today() + timedelta(days=d - 2)
+    number = start.strftime("%Y%m%d")
+    archived_path = f"archive/{number}.csv"
+    forecast_path = f"forecast/{number}-tomorrow.csv"
+    Xaxis = np.arange(0,24)
+    archived = pd.read_csv(archived_path, dtype=np.float64, index_col="time")[column]
+    forecast_table = pd.read_csv(forecast_path, dtype=np.float64, index_col="time")
+    selected_columns = forecast_table.filter(regex=f'_{column}$')
+
+    forecast = selected_columns.mean(axis=1)
+
+    fig, ax1 = plt.subplots(figsize=(6, 5))
+
+    ax1.plot(Xaxis, archived, label="Данные того же дня")
+    ax1.plot(Xaxis, forecast, label="Прогноз днем ранее")
+    plt.xticks(Xaxis)
+    ax1.set_xlabel("Время, ч")
+    ax1.set_ylabel("Температура, °C")
+    plt.legend()
+
+    plt.show()
+
+
