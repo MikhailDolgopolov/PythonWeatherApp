@@ -16,6 +16,6 @@ end = time.time()
 print(f"fetching took {end-start} seconds")
 
 renderer = ForecastRendering()
-renderer.show_data(today)
-renderer.show_data(tomorrow)
+renderer.render_data(today)
+renderer.render_data(tomorrow)
 

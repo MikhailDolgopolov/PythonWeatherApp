@@ -42,8 +42,8 @@ class ForecastRendering:
             cs = ["green", "blue", "red"]
         self.colors = cs
 
-    def show_data(self, data: ForecastData):
-        fig, ax1 = plt.subplots(figsize=(7,6))
+    def render_data(self, data: ForecastData):
+        fig, ax1 = plt.subplots(figsize=(6,5))
         Xaxis = data.time
         main_plot = "temperature"
         for i in range(len(self.colors)):
@@ -51,32 +51,44 @@ class ForecastRendering:
         ax1.set_xlabel("Время, ч")
         ax1.set_ylabel("Температура, °C")
         plt.legend()
-        color1 = hex_to_rgb("#abebff")  # Uncertain
-        color2 = hex_to_rgb("#0026FF")  # Certain
 
-        colors = [rgb_to_hex(interpolate_color(color1, color2, factor)) for factor in data.precp_certainty]
-        bottom = np.min(data.mean_values[main_plot])-8
-        prob_height = 1 # height of the precipitation probability graph
-        plt.bar(Xaxis, data.mean_values["precipitation"], color=colors, bottom=bottom)
-        plt.fill_between(Xaxis, bottom, -prob_height*data.precipitation_probability/100+bottom, color='#abebff')
-        plt.plot(Xaxis, [bottom]*24, color="black")
-        plt.plot(Xaxis, [bottom]*24, color="black")
+        bottom = np.min(data.mean_values[main_plot])-5
+        if not data.precipitation_exists:
+            # plt.plot(Xaxis, [first_tick] * 24, color="black")
+            plt.ylim(bottom=bottom)
+        if data.precipitation_exists:
+            color1 = hex_to_rgb("#98cefa")  # Uncertain
+            color2 = hex_to_rgb("#0026FF")  # Certain
 
-        ax2 = ax1.secondary_yaxis("right", functions=(lambda x: (x-bottom), lambda x: x-bottom))
-        ax2.set_ylabel("Осадки, мм")
+            colors = [rgb_to_hex(interpolate_color(color1, color2, factor)) for factor in data.precp_certainty]
+            bottom -= 5
+            prob_height = 1 # height of the precipitation probability graph
+            plt.bar(Xaxis, data.mean_values["precipitation"], color=colors, bottom=bottom)
+            plt.fill_between(Xaxis, bottom, -prob_height*data.precipitation_probability/100+bottom, color='#abebff')
+            plt.plot(Xaxis, [bottom]*24, color="black")
 
-        ybottom, ytop = -prob_height+bottom, max(data.mean_values[main_plot])+6
-        plt.xlim(0,23)
-        plt.ylim(bottom=ybottom)
+            ax2 = ax1.secondary_yaxis("right", functions=(lambda x: (x-bottom), lambda x: x-bottom))
+            ax2.set_ylabel("Осадки, мм")
+
+            ybottom, ytop = -prob_height+bottom, max(data.mean_values[main_plot])+6
+            plt.ylim(bottom=ybottom)
+
+            step = 3
+            # print(plt.yticks())
+            ybottom = int(ybottom) // step * step
+            ytop = round(ytop // step) * step
+            plt.yticks(np.arange(ybottom, ytop, step))
+
         plt.grid(which="both", color="lightgray")
+        plt.xlim(0, 23)
         plt.xticks(Xaxis)
 
-        step = 3
-        ybottom = int(ybottom)//step*step
-        ytop = round(ytop//step)*step
-        plt.yticks(np.arange(ybottom, ytop, step))
+        first_tick = plt.yticks()[0][1]
+        if not data.precipitation_exists and first_tick>0:
+            plt.plot(Xaxis, [first_tick] * 24, color="black")
+        plt.title(f"Прогноз на {data.accs_name}", y=1.05)
 
-        plt.savefig(f"Images/{my_filename(data.forecast_day)}.png")
+        plt.savefig(f"Images/{my_filename(data.forecast_day)}.png", bbox_inches="tight")
         plt.show()
         plt.close()
 

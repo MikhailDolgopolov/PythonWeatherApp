@@ -17,6 +17,13 @@
             </Attribute>
           </value>
         </entry>
+        <entry key="\forecast\20240725-today.csv">
+          <value>
+            <Attribute>
+              <option name="separator" value="," />
+            </Attribute>
+          </value>
+        </entry>
         <entry key="\forecast\20240725-tomorrow.csv">
           <value>
             <Attribute>
@@ -25,6 +32,13 @@
           </value>
         </entry>
         <entry key="\forecast\20240725.csv">
+          <value>
+            <Attribute>
+              <option name="separator" value="," />
+            </Attribute>
+          </value>
+        </entry>
+        <entry key="\forecast\20240726-tomorrow.csv">
           <value>
             <Attribute>
               <option name="separator" value="," />

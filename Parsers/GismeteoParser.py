@@ -1,4 +1,5 @@
 import datetime
+from typing import List, Any
 
 from selenium import webdriver
 from selenium.webdriver.common.by import By
@@ -26,9 +27,9 @@ class GismeteoParser(BaseParser):
             tomorrow.click()
             return BeautifulSoup(self.driver.page_source, "lxml")
         else:
-            print("Is not supported")
+            print("Other days are not supported")
 
-    def get_weather(self, date) -> dict:
+    def get_weather(self, date) -> list[list[str | int | float]]:
         soup = self.parse_page(date)
 
         table = soup.find("div", "widget-items")
@@ -44,11 +45,5 @@ class GismeteoParser(BaseParser):
         wind = [list(w.strings) for w in wind_row_items]
         wind = [int(item) if item.isdigit() else 0 for sublist in wind for item in sublist]
 
-        d = [[clocks[i],int(temps[i]), float(mm_percp[i].replace(",", ".")), wind[i]] for i in range(len(clouds))]
-        # print(clocks)
-        # print(clouds)
-        # print(temps)
-        # print(mm_percp)
-        # print(wind)
-        return d
+        return [[clocks[i],int(temps[i]), float(mm_percp[i].replace(",", ".")), wind[i]] for i in range(len(clouds))]
 

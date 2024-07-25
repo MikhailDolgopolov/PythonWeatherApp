@@ -31,11 +31,11 @@ class ForecaParser(BaseParser):
         soup = self.parse_date(date)
         table = soup.find("div", class_="hourContainer")
         data = [[row.find("span", "time_24h").text,
-            # row.find("div", "symbolText").text, #cloudiness
             int(row.find("span", "temp_c").text),
             row.find("span", "rain_mm").text.split()[0],
             row.find("span", "wind_ms").text
         ] for row in table.findAll("div", "hour")]
+
         return data
 
 

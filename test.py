@@ -4,6 +4,6 @@ pd.set_option('display.max_columns', 10)  # Increase the number of columns to di
 pd.set_option('display.max_colwidth', 50)  # Set the max column width to 50 characters
 
 from Parsers.OpenMeteo import get_open_meteo
+from Parsers.ForecaParser import ForecaParser
 
-openmeteo = pd.DataFrame.from_records(get_open_meteo(1), columns=["time", "temperature", "precipitation", "wind_speed"])
-print(openmeteo)
+ForecaParser().get_weather_today()
