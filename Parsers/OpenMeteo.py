@@ -17,6 +17,7 @@ url = "https://api.open-meteo.com/v1/forecast"
 
 
 def get_open_meteo(day = 1):
+	print("Loading OpenMeteo...")
 	params = {
 		"latitude": 55.57,
 		"longitude": 35.91,
