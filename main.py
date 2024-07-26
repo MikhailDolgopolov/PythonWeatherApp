@@ -5,7 +5,7 @@ from Forecast import Forecast
 from FileManager import delete_old_files
 import time
 
-from mail.emails import send_my_email
+from mail.emails import send_my_email, send_red_email
 
 delete_old_files()
 forecast = Forecast()
@@ -21,4 +21,4 @@ print(f"fetching took {end-start} seconds")
 fig1 = render_forecast_data(today_forecast)
 fig2 = render_forecast_data(tomorrow_forecast)
 
-send_my_email(fig1, fig2)
+send_red_email(fig1, fig2)
