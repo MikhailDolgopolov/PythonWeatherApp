@@ -90,9 +90,6 @@ def render_forecast_data(data: ForecastData, sources: list[str] = None):
     plt.xlim(0, 23)
     plt.xticks(Xaxis)
 
-    first_tick = plt.yticks()[0][1]
-    # if not data.precipitation_exists and first_tick > 0:
-        # plt.plot(Xaxis, [first_tick] * 24, color="black")
     plt.title(f"Прогноз на {day.accs_day_name}, {day.D_month}", y=1.05)
 
     path = f"Images/{day.forecast_name}-{structure}.png"

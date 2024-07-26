@@ -1,3 +1,4 @@
+import re
 import smtplib
 import ssl
 from datetime import datetime
@@ -9,22 +10,30 @@ from typing import Dict, Union
 from Day import Day
 from helpers import read_json
 
-config = read_json('secrets.json')
+config = read_json('mail/secrets.json')
 
-sender_email, receiver_email = config["sender_email"], config["receiver_email"]
 
+
+def read_receivers():
+    addresses = open("mail/receivers.txt").read().split("\n")
+    pattern = re.compile(r".*@(.*\..{2,3})$")
+    corresponding = {a: re.search(pattern, a).group(1) for a in addresses}
+    servers = set(corresponding.values())
+    server_mapping = {"smtp." + k: [ad for ad, ser in corresponding.items() if ser == k] for k in servers}
+    print("Looked up receivers")
+
+    return server_mapping
 
 
 # noinspection SpellCheckingInspection
-def send_my_email(today:Dict[str, Union[str, Day]], tomorrow):
+def send_my_email(today: Dict[str, Union[str, Day]], tomorrow):
     print("Creating and sending the email")
     metadata = read_json("metadata.json")
     port = 465
 
     message = MIMEMultipart("alternative")
     message["Subject"] = f"Погода в {today['day'].accs_day_name} и {tomorrow['day'].accs_day_name}"
-    message["From"] = sender_email
-    message["To"] = receiver_email
+    message["From"] = config["gmail_email"]
 
     # noinspection SpellCheckingInspection
     html = """
@@ -44,7 +53,8 @@ def send_my_email(today:Dict[str, Union[str, Day]], tomorrow):
 
     dates = []
     for day in [today, tomorrow]:
-        dates.append(datetime.strptime(metadata[day['day'].short_date],'%Y-%m-%dT%H:%M:%S').strftime("%d.%m.%Y, в %H:%M:%S"))
+        dates.append(
+            datetime.strptime(metadata[day['day'].short_date], '%Y-%m-%dT%H:%M:%S').strftime("%d.%m.%Y, в %H:%M:%S"))
     # noinspection SpellCheckingInspection
     html = html.format(f"Данные получены {dates[0]}", f"Данные получены {dates[1]}")
     message.attach(MIMEText(html, "html"))
@@ -59,8 +69,19 @@ def send_my_email(today:Dict[str, Union[str, Day]], tomorrow):
         message.attach(mime_img2)
 
     context = ssl.create_default_context()
-    with smtplib.SMTP_SSL("smtp.gmail.com", port, context=context) as server:
-        server.login(sender_email, config["password"])
-        server.sendmail(sender_email, receiver_email, message.as_string())
-        print("Email sent")
 
+    for server, ad_list in read_receivers().items():
+        if server == "smtp.gmail.com": continue
+        try:
+            with smtplib.SMTP_SSL("smtp.gmail.com", port, context=context) as s:
+                s.login(config["gmail_email"], config[f"gmail_password"])
+                rec_str = ", ".join(ad_list)
+                message["To"] = rec_str
+                # print(message["To"])
+                s.sendmail(message["From"], rec_str, message.as_string())
+                print(f"email(s) sent to {server}")
+        except Exception as e:
+            print(f"Failed to send to {server}:")
+            print(e)
+        finally:
+            print("Done with emails")

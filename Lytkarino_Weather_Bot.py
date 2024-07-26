@@ -10,7 +10,7 @@ logging.basicConfig(format='%(asctime)s - %(name)s - %(levelname)s - %(message)s
                     level=logging.INFO)
 
 # Telegram bot API token
-TOKEN = read_json("secrets.json")["telegram_token"]
+TOKEN = read_json("email/secrets.json")["telegram_token"]
 
 logger = logging.getLogger(__name__)
 

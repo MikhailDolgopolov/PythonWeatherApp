@@ -99,7 +99,7 @@ class Forecast:
         if path.exists(folder):
             if path.exists(filename):
                 combined = pd.read_csv(filename, dtype=np.float64, index_col="time")
-                print(f"saved data found for {day.full_date}")
+                print(f"found saved data for {day.full_date}")
                 return combined
             else:
                 print("no saved data found")

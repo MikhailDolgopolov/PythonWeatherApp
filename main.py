@@ -1,16 +1,11 @@
-import datetime
-import pandas as pd
-from matplotlib import pyplot as plt
-from numpy import dtype
-
 from Day import Day
 from ForecastData import ForecastData
-from ForecastRendering import render_forecast_data, compare_history
+from ForecastRendering import render_forecast_data
 from Forecast import Forecast
 from FileManager import delete_old_files
 import time
 
-from emails import send_my_email
+from mail.emails import send_my_email
 
 delete_old_files()
 forecast = Forecast()
@@ -26,4 +21,4 @@ print(f"fetching took {end-start} seconds")
 fig1 = render_forecast_data(today_forecast)
 fig2 = render_forecast_data(tomorrow_forecast)
 
-# send_my_email(fig1, fig2)
+send_my_email(fig1, fig2)
