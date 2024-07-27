@@ -41,7 +41,7 @@ async def start(update: Update, context: CallbackContext) -> None:
 async def tod(update: Update, context: CallbackContext):
 
     chat_id = update.message.chat_id
-    pic = get_and_render(TOMORROW)
+    pic = get_and_render(TODAY)
 
     print("sending today")
     await context.bot.send_photo(chat_id=chat_id, photo=pic["path"])
@@ -89,17 +89,6 @@ def main() -> None:
     application.add_handler(MessageHandler(filters.Regex(re.compile(r'завтра(?!.*сегодня)', re.IGNORECASE)), send_today))
     application.add_handler(MessageHandler(filters.Regex(re.compile(r'сегодня.*завтра', re.IGNORECASE)), tt1))
     application.add_handler(MessageHandler(filters.Regex(re.compile(r'завтра.*сегодня', re.IGNORECASE)), tt2))
-
-    # conv_handler = ConversationHandler(
-    #     entry_points=[CommandHandler("start", start),
-    #                   MessageHandler(filters.Regex(re.compile(r'сегодня', re.IGNORECASE)), send_today),
-    #                   MessageHandler(filters.Regex(re.compile(r'завтра', re.IGNORECASE)), send_today)],
-    #
-    #     states={TODAY: [MessageHandler(filters.Regex(re.compile(r'help', re.IGNORECASE)), send_today)],
-    #             TOMORROW: [MessageHandler(filters.Regex(r'завтра'), send_tomorrow)]},
-    #     fallbacks=[CommandHandler("start", start)],
-    # )
-    # application.add_handler(conv_handler)
 
     # Run the bot until the user presses Ctrl-C
     application.run_polling(allowed_updates=Update.ALL_TYPES)
