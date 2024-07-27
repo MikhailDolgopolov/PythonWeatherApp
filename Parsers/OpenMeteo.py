@@ -6,6 +6,8 @@ import pandas as pd
 from matplotlib import pyplot as plt
 from retry_requests import retry
 
+from helpers import my_point
+
 # Set up the Open-Meteo API client with cache and retry on error
 cache_session = requests_cache.CachedSession('.cache', expire_after=3600)
 retry_session = retry(cache_session, retries=5, backoff_factor=0.2)
@@ -18,9 +20,10 @@ url = "https://api.open-meteo.com/v1/forecast"
 
 def get_open_meteo(day=1):
     print("Loading OpenMeteo...")
+    p = my_point()
     params = {
-        "latitude": 55.57,
-        "longitude": 35.91,
+        "latitude": p[0],
+        "longitude": p[1],
         "hourly": ["temperature_2m", "precipitation_probability", "precipitation", "wind_speed_10m"],
         "wind_speed_unit": "ms",
         "timezone": "Europe/Moscow",

@@ -102,9 +102,9 @@ class Forecast:
                 print(f"found saved data for {day.full_date}")
                 return combined
             else:
-                print("no saved data found")
+                print(f"no saved data found for {day.full_date}")
         else:
-            print("no saved data found")
+            print(f"no saved data found for {day.full_date}")
             mkdir(folder)
         data = self.get_pandas(day)
         data.to_csv(path_or_buf=filename, index_label="time", index=True)

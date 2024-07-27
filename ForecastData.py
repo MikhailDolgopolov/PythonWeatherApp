@@ -47,8 +47,7 @@ class ForecastData:
         prob_count = np.count_nonzero(np.where(self.precipitation_probability > 1, 1, 0)) * 100
         prec_per_hour = 0 if prec_count == 0 else sum(self.mean_values["precipitation"]) / prec_count
         prob_per_hour = 0 if prob_count == 0 else sum(self.precipitation_probability) / prob_count
-        self.precipitation_exists = prob_per_hour * prec_per_hour > 0.01
-
+        self.precipitation_exists = prob_per_hour * prec_per_hour > 0.007
         if day.offset == 0:
             pd.DataFrame(data=self.mean_values).to_csv(path_or_buf=f"archive/{day.short_date}.csv", index_label="time",
                                                        index=True)

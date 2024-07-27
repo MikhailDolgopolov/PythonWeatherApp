@@ -2,21 +2,15 @@ import json
 from datetime import datetime, timedelta
 from typing import Union
 
+import numpy as np
 from pymorphy3 import MorphAnalyzer
 
 
 morph = MorphAnalyzer()
 
 
-# def my_date(day: Union[int, Day]):
-#     if isinstance(day, Day):
-#         day = day.offset
-#     return f"{(datetime.today() + timedelta(days=day - 1)).strftime('%Y%m%d')}"
-
-
-# def my_filename(day):
-#     return f"{my_date(day)}-{('today' if day == 1 else 'tomorrow')}"
-
+def my_point():
+    return 55.57, 35.91
 
 def read_json(file_path):
     data = {}
@@ -36,3 +30,20 @@ def write_json(data: dict, path: str):
 
 def inflect(word, case: Union["accs", "gent"]) -> str:
     return morph.parse(word)[0].inflect({case}).word
+
+
+def check_and_add_numbers(arr, nums, tolerance=1):
+    result = list(arr)
+    to_add=[]
+    for num in nums:
+        differences = np.abs(arr - num)
+        closest_index = np.argmin(differences)
+
+        if np.any(differences < tolerance):
+            result[closest_index] = num
+        else:
+            to_add.append(num)
+
+    result.extend(to_add)
+    return np.array(result)
+

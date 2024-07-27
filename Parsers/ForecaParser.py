@@ -1,6 +1,5 @@
 from pprint import pprint
 
-from tqdm import tqdm
 from bs4 import BeautifulSoup
 
 from Parsers.BaseParser import BaseParser
@@ -31,6 +30,6 @@ class ForecaParser(BaseParser):
                  int(row.find("span", "temp_c").text),
                  row.find("span", "rain_mm").text.split()[0],
                  row.find("span", "wind_ms").text
-                 ] for row in tqdm(table.findAll("div", "hour"))]
+                 ] for row in table.findAll("div", "hour")]
 
         return data

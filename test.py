@@ -1,16 +1,21 @@
 import email
+import os
 import smtplib
 import ssl
+import time
 from email.mime.multipart import MIMEMultipart
 from email.mime.text import MIMEText
 from pprint import pprint
 
 import pandas as pd
+from redmail import gmail
 
 from Day import Day
 from Forecast import Forecast
 from ForecastData import ForecastData
 from helpers import read_json
+
+f = open("log.txt", "w")
 
 pd.set_option('display.width', 200)  # Increase the width to 200 characters
 pd.set_option('display.max_columns', 10)  # Increase the number of columns to display to 10
@@ -20,6 +25,8 @@ from Parsers.OpenMeteo import get_open_meteo
 from Parsers.ForecaParser import ForecaParser
 import re
 from datetime import datetime
+
+f.write(f"starting {datetime.now()}\n")
 
 # mishad2304+python@gmail.com
 # dolgpa+python@gmail.com

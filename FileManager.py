@@ -6,7 +6,7 @@ import re
 
 
 def delete_old_files():
-    folders = ["forecast", "Images"]
+    folders = ["forecast"]
     date = datetime.today() - timedelta(days=1)
     number = int(date.strftime("%Y%m%d"))
     to_delete = []

@@ -1,3 +1,4 @@
+import os
 from datetime import datetime, timedelta
 
 import pandas as pd
@@ -6,7 +7,10 @@ import numpy as np
 from matplotlib import pyplot as plt
 import seaborn as sns
 
+from Day import Day
+from Forecast import Forecast
 from ForecastData import ForecastData
+from helpers import check_and_add_numbers
 
 sns.set_style("whitegrid")
 pd.set_option('display.width', 200)  # Increase the width to 200 characters
@@ -40,22 +44,39 @@ def rgb_to_hex(rgb_color):
     return '#%02x%02x%02x' % tuple(rgb_color)
 
 
-def render_forecast_data(data: ForecastData, sources: list[str] = None):
+def get_and_render(offset, save=True, show=False, generate_new=False):
+
+    day = Day(offset)
+    path = f"Images/{day.forecast_name}.png"
+    if os.path.isfile(path) and not generate_new:
+        return {"path": path, "day": day}
+    else:
+        forecast = Forecast()
+        data = ForecastData(forecast, day)
+        return render_forecast_data(data, sources=None, save=save, show=show)
+
+
+def render_forecast_data(data: ForecastData, sources: list[str] = None, save=True, show=False):
+
     if sources is None:
         sources = data.source_names
 
-    structure = "".join(sorted([s.lower()[0] for s in sources]))
     sources.append("mean")
     day = data.day
+
     print(f"Rendering for {day.full_date}")
     fig, ax1 = plt.subplots(figsize=(6, 5))
     Xaxis = data.time
     main_plot = "temperature"
     for s in sources:
         if s == "mean": continue
-        plt.plot(Xaxis, data.get_source(s)[main_plot], linestyle='-', color=data.colormap[s], label=s)
+        plt.plot(Xaxis, data.get_source(s)[main_plot], color=data.colormap[s], label=s, zorder=4)
     if "mean" in sources:
-        plt.plot(Xaxis, data.mean_values[main_plot], color=[0.4]*4, linewidth=25)
+        plt.plot(Xaxis, data.mean_values[main_plot], color=[0.6]*3, alpha=0.5, linewidth=25, zorder=2)
+
+
+    sunspan = day.suntime
+    plt.axvspan(sunspan[0], sunspan[1], alpha=0.3, color="#ebbf2f", zorder=0)
     ax1.set_xlabel("Время, ч")
     ax1.set_ylabel("Температура, °C")
     plt.legend()
@@ -81,18 +102,23 @@ def render_forecast_data(data: ForecastData, sources: list[str] = None):
         ybottom, ytop = -prob_height + bottom, max(data.mean_values[main_plot]) + 6
         plt.ylim(bottom=ybottom)
 
-        step = 3
-        ybottom = int(ybottom) // step * step
-        ytop = round(ytop // step) * step
-        plt.yticks(np.arange(ybottom, ytop, step))
+    d = data.mean_values[main_plot]
+    lower_x = np.argmin(d)
+    higher_x = np.argmax(d)
+    lower_y = round(d[lower_x])
+    higher_y = round(d[higher_x])
+    plt.hlines([lower_y, higher_y], [0, 0], [lower_x, higher_x], linestyle=(5, (10, 3)), color=[0.3] * 3, linewidth=1,
+               zorder=3)
+    ticks = plt.yticks()[0]
+    ticks=check_and_add_numbers(ticks, [lower_y, higher_y])
+    plt.yticks(ticks)
 
     plt.grid(which="both", color="lightgray")
     plt.xlim(0, 23)
     plt.xticks(Xaxis)
-
     plt.title(f"Прогноз на {day.accs_day_name}, {day.D_month}", y=1.05)
 
-    path = f"Images/{day.forecast_name}-{structure}.png"
+    path = f"Images/{day.forecast_name}.png"
     plt.savefig(path, bbox_inches="tight", dpi=600)
     # plt.show()
     plt.close()
