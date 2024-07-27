@@ -1,8 +1,12 @@
 import logging
+import re
+from datetime import datetime
+import time
 from telegram import Bot, Update, ReplyKeyboardRemove, InlineKeyboardButton, InlineKeyboardMarkup
 from telegram.ext import Updater, CommandHandler, CallbackContext, Application, ConversationHandler, ContextTypes, \
-    CallbackQueryHandler
+    CallbackQueryHandler, filters, MessageHandler
 
+from ForecastRendering import get_and_render
 from helpers import read_json
 
 # Set up logging
@@ -10,63 +14,92 @@ logging.basicConfig(format='%(asctime)s - %(name)s - %(levelname)s - %(message)s
                     level=logging.INFO)
 
 # Telegram bot API token
-TOKEN = read_json("email/secrets.json")["telegram_token"]
+TOKEN = read_json("secrets.json")["telegram_token"]
 
 logger = logging.getLogger(__name__)
 
-options = {}
 
-
+TODAY, TOMORROW = range(2)
 # noinspection PyUnusedLocal
 async def start(update: Update, context: CallbackContext) -> None:
-    await update.message.reply_text('Hello!')
-    await update.message.reply_text("Available commands are: /start, /pic, /settings")
+    await update.message.reply_text('Привет!')
+    time.sleep(1)
+    await update.message.reply_text("Мне можно отправить любое сообщение со словами 'сегодня' или 'завтра', и я отправлю прогноз. Вот пример:")
+    time.sleep(0.5)
+    await context.bot.send_photo(chat_id=update.message.chat_id, photo="demo.png")
+    time.sleep(2)
+    await update.message.reply_text("""На графике показаны:
+    - температура из трёх источников
+    - средняя температура из тех же данных
+    - среднее количество осадков в час
+    - вероятность выпадения осадков, по OpenMeteo (ширина голубой полоски под столбчатой диаграммой)
+    - световой день
+    Также, насыщенность цвета столбчатой диаграммы показывает, насколько совпадает количество осадков в разных источниках.""")
 
 
-# noinspection PyUnusedLocal
-async def settings(update: Update, context: CallbackContext) -> None:
-    keyboard = [
-        [InlineKeyboardButton("Option 1", callback_data='set_option_1')],
-        [InlineKeyboardButton("Option 2", callback_data='set_option_2')],
-        [InlineKeyboardButton("Option 3", callback_data='set_option_3')],
-    ]
-    reply_markup = InlineKeyboardMarkup(keyboard)
-    await update.message.reply_text('Please choose an option:', reply_markup=reply_markup)
 
+async def tod(update: Update, context: CallbackContext):
 
-# noinspection PyUnusedLocal
-async def button(update: Update, context: CallbackContext) -> None:
-    query = update.callback_query
-    await query.answer()
-
-    user_id = query.from_user.id
-    data = query.data
-
-    # Update user settings based on the button pressed
-    if data == 'set_option_1':
-        options[user_id] = 'Option 1'
-    elif data == 'set_option_2':
-        options[user_id] = 'Option 2'
-    elif data == 'set_option_3':
-        options[user_id] = 'Option 3'
-
-    await query.edit_message_text(text=f'Setting updated to: {options[user_id]}')
-
-
-async def send_image(update: Update, context: CallbackContext) -> None:
     chat_id = update.message.chat_id
-    pic = "D:/Programming/python/WeatherApp/Images/20240725-0-fgo.png"
-    print("sending")
-    await context.bot.send_photo(chat_id=chat_id, photo=pic)
+    pic = get_and_render(TOMORROW)
 
+    print("sending today")
+    await context.bot.send_photo(chat_id=chat_id, photo=pic["path"])
+
+    metadata = read_json("metadata.json")
+    await update.message.reply_text(datetime.strptime(metadata[pic['day'].short_date], '%Y-%m-%dT%H:%M:%S').strftime(
+        "Данные плучены %d.%m.%Y, в %H:%M"))
+async def send_today(update: Update, context: CallbackContext) -> int:
+    await tod(update, context)
+    return ConversationHandler.END
+
+
+async def tom(update: Update, context: CallbackContext):
+    chat_id = update.message.chat_id
+    pic = get_and_render(TOMORROW)
+    print("sending tomorrow")
+    await context.bot.send_photo(chat_id=chat_id, photo=pic["path"])
+    metadata = read_json("metadata.json")
+    print(metadata)
+    await update.message.reply_text(datetime.strptime(metadata[pic['day'].short_date], '%Y-%m-%dT%H:%M:%S').strftime(
+        "Данные плучены %d.%m.%Y, в %H:%M"))
+async def send_tomorrow(update: Update, context: CallbackContext) -> int:
+    await tom(update, context)
+    return ConversationHandler.END
+
+
+async def tt1(update: Update, context: CallbackContext) -> int:
+    await tom(update, context)
+    await tod(update, context)
+    return ConversationHandler.END
+
+async def tt2(update: Update, context: CallbackContext) -> int:
+    await tod(update, context)
+    await tom(update, context)
+    return ConversationHandler.END
 
 def main() -> None:
-    application = Application.builder().token(TOKEN).build()
 
+    application = Application.builder().token(TOKEN).build()
     application.add_handler(CommandHandler("start", start))
-    application.add_handler(CommandHandler("pic", send_image))
-    application.add_handler(CommandHandler("settings", settings))
-    application.add_handler(CallbackQueryHandler(button))
+    application.add_handler(CommandHandler("today", send_today))
+    application.add_handler(CommandHandler("tomorrow", send_tomorrow))
+
+    application.add_handler(MessageHandler(filters.Regex(re.compile(r'сегодня(?!.*завтра)', re.IGNORECASE)), send_today))
+    application.add_handler(MessageHandler(filters.Regex(re.compile(r'завтра(?!.*сегодня)', re.IGNORECASE)), send_today))
+    application.add_handler(MessageHandler(filters.Regex(re.compile(r'сегодня.*завтра', re.IGNORECASE)), tt1))
+    application.add_handler(MessageHandler(filters.Regex(re.compile(r'завтра.*сегодня', re.IGNORECASE)), tt2))
+
+    # conv_handler = ConversationHandler(
+    #     entry_points=[CommandHandler("start", start),
+    #                   MessageHandler(filters.Regex(re.compile(r'сегодня', re.IGNORECASE)), send_today),
+    #                   MessageHandler(filters.Regex(re.compile(r'завтра', re.IGNORECASE)), send_today)],
+    #
+    #     states={TODAY: [MessageHandler(filters.Regex(re.compile(r'help', re.IGNORECASE)), send_today)],
+    #             TOMORROW: [MessageHandler(filters.Regex(r'завтра'), send_tomorrow)]},
+    #     fallbacks=[CommandHandler("start", start)],
+    # )
+    # application.add_handler(conv_handler)
 
     # Run the bot until the user presses Ctrl-C
     application.run_polling(allowed_updates=Update.ALL_TYPES)
