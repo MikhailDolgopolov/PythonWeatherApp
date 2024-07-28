@@ -93,12 +93,13 @@ class Forecast:
 
         return combined
 
-    def fetch_forecast(self, day: Day) -> pd.DataFrame:
+    def fetch_forecast(self, day: Day, update=False) -> pd.DataFrame:
         folder = "forecast"
         filename = f"{folder}/{day.forecast_name}.csv"
         if path.exists(folder):
             if path.exists(filename):
                 combined = pd.read_csv(filename, dtype=np.float64, index_col="time")
+
                 print(f"found saved data for {day.full_date}")
                 return combined
             else:

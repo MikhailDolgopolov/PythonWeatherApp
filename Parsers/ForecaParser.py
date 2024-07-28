@@ -22,7 +22,7 @@ class ForecaParser(BaseParser):
             print(ex)
             return None
 
-    def get_weather(self, date):
+    def get_weather(self, date) -> list[list[str]]:
         print("Loading Foreca...")
         soup = self.parse_date(date)
         table = soup.find("div", class_="hourContainer")

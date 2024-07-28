@@ -11,7 +11,7 @@ class BaseParser:
         self.driver: WebDriver = webdriver.Chrome(options=options)
         # self.driver.maximize_window()
 
-    def get_weather(self, date):
+    def get_weather(self, date) -> list[list[str]]:
         raise NotImplementedError("Subclasses should implement this method")
 
     def get_weather_today(self):

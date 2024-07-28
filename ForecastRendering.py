@@ -57,11 +57,10 @@ def get_and_render(offset, save=True, show=False, generate_new=False):
 
 
 def render_forecast_data(data: ForecastData, sources: list[str] = None, save=True, show=False):
-
+    from scipy import interpolate
     if sources is None:
         sources = data.source_names
 
-    sources.append("mean")
     day = data.day
 
     print(f"Rendering for {day.full_date}")
@@ -69,11 +68,9 @@ def render_forecast_data(data: ForecastData, sources: list[str] = None, save=Tru
     Xaxis = data.time
     main_plot = "temperature"
     for s in sources:
-        if s == "mean": continue
         plt.plot(Xaxis, data.get_source(s)[main_plot], color=data.colormap[s], label=s, zorder=4)
-    if "mean" in sources:
-        plt.plot(Xaxis, data.mean_values[main_plot], color=[0.6]*3, alpha=0.5, linewidth=25, zorder=2)
 
+    plt.plot(Xaxis, data.mean_values[main_plot], color=[0.6]*3, alpha=0.5, linewidth=25, zorder=2)
 
     sunspan = day.suntime
     plt.axvspan(sunspan[0], sunspan[1], alpha=0.3, color="#ebbf2f", zorder=0)
@@ -89,12 +86,22 @@ def render_forecast_data(data: ForecastData, sources: list[str] = None, save=Tru
         color2 = hex_to_rgb("#0026FF")  # Certain
 
         colors = [rgb_to_hex(interpolate_color(color1, color2, factor)) for factor in data.precp_certainty]
+        # colors = [rgb_to_hex(interpolate_color(color1, color2, factor)) for factor in [0]*24]
         bottom -= 5
         prob_height = 1  # height of the precipitation probability graph
-        plt.bar(Xaxis, data.mean_values["precipitation"], color=colors, bottom=bottom, linewidth=0)
+        # plt.bar(Xaxis, data.mean_values["precipitation"], color=colors, bottom=bottom, linewidth=0)
         plt.fill_between(Xaxis, bottom, -prob_height * data.precipitation_probability / 100 + bottom,
                          color='#abebff')
-        plt.plot(Xaxis, [bottom] * 24, color="black")
+        bar_width = 0.3
+        for i in range(len(sources)):
+            # print(data.get_source(s)["precipitation"])
+            amount=np.array(data.get_source(sources[i])["precipitation"])
+            cubic_interpolation_model = interpolate.interp1d(Xaxis, amount, kind='cubic')
+            X_ = np.linspace(0, 23, 24*6)
+            Y_ = cubic_interpolation_model(X_)
+            plt.bar(Xaxis+bar_width*(i-1), amount, bar_width, bottom=bottom, color=data.colormap[sources[i]], zorder=4, linewidth=0)
+            # plt.plot(X_, Y_+bottom, color=data.colormap[sources[i]], zorder=4)
+        plt.plot(Xaxis, [bottom] * 24, color="black", zorder=5)
 
         ax2 = ax1.secondary_yaxis("right", functions=(lambda x: (x - bottom), lambda x: x - bottom))
         ax2.set_ylabel("Осадки, мм")
