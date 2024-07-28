@@ -1,10 +1,11 @@
 import json
+import os
 from datetime import datetime, timedelta
+from glob import glob
 from typing import Union
 
 import numpy as np
 from pymorphy3 import MorphAnalyzer
-
 
 morph = MorphAnalyzer()
 
@@ -12,15 +13,13 @@ morph = MorphAnalyzer()
 def my_point():
     return 55.57, 35.91
 
-def read_json(file_path):
-    data = {}
+
+def read_json(file_path) -> dict:
     try:
         with open(file_path, 'r') as file:
-            data = json.load(file)
-    except Exception as e:
-        print(e)
-    finally:
-        return data
+            return json.load(file)
+    except FileNotFoundError:
+        print("Current working directory:", os.getcwd(), "no file ", file_path)
 
 
 def write_json(data: dict, path: str):
@@ -34,7 +33,7 @@ def inflect(word, case: Union["accs", "gent"]) -> str:
 
 def check_and_add_numbers(arr, nums, tolerance=1):
     result = list(arr)
-    to_add=[]
+    to_add = []
     for num in nums:
         differences = np.abs(arr - num)
         closest_index = np.argmin(differences)
@@ -46,4 +45,3 @@ def check_and_add_numbers(arr, nums, tolerance=1):
 
     result.extend(to_add)
     return np.array(result)
-

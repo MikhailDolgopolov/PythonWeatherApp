@@ -91,7 +91,7 @@ def render_forecast_data(data: ForecastData, sources: list[str] = None, save=Tru
         colors = [rgb_to_hex(interpolate_color(color1, color2, factor)) for factor in data.precp_certainty]
         bottom -= 5
         prob_height = 1  # height of the precipitation probability graph
-        plt.bar(Xaxis, data.mean_values["precipitation"], color=colors, bottom=bottom)
+        plt.bar(Xaxis, data.mean_values["precipitation"], color=colors, bottom=bottom, linewidth=0)
         plt.fill_between(Xaxis, bottom, -prob_height * data.precipitation_probability / 100 + bottom,
                          color='#abebff')
         plt.plot(Xaxis, [bottom] * 24, color="black")
@@ -119,8 +119,11 @@ def render_forecast_data(data: ForecastData, sources: list[str] = None, save=Tru
     plt.title(f"Прогноз на {day.accs_day_name}, {day.D_month}", y=1.05)
 
     path = f"Images/{day.forecast_name}.png"
-    plt.savefig(path, bbox_inches="tight", dpi=600)
-    # plt.show()
+
+    if save:
+        plt.savefig(path, bbox_inches="tight", dpi=600)
+    if show:
+        plt.show()
     plt.close()
     return {"path": path, "day": day}
 

@@ -1,5 +1,4 @@
 import re
-from glob import glob
 
 from redmail import gmail
 import smtplib
@@ -14,7 +13,7 @@ from Day import Day
 from ForecastRendering import get_and_render
 from helpers import read_json
 
-config = read_json('mail/secrets.json')
+config = read_json('secrets.json')
 
 
 def read_receivers():
@@ -22,8 +21,7 @@ def read_receivers():
     # dolgpa+python@gmail.com
     # midolgop@yandex.ru
     # dolgtat@yandex.ru
-    folder = glob('../**/**/mail', recursive=True)[0].replace('\\', '/')
-    addresses = open(f"{folder}/receivers.txt").read().split("\n")
+    addresses = open("mail/receivers.txt").read().split("\n")
     return addresses
 
 
@@ -32,7 +30,7 @@ def send_red_email(today: Dict[str, Union[str, Day]], tomorrow: Dict[str, Union[
     gmail.password = config["gmail_password"]
     if receivers is None:
         receivers = read_receivers()
-    metadata = read_json("metadata.json")
+    metadata = read_json("mail/metadata.json")
     dates = []
     for day in [today, tomorrow]:
         dates.append(

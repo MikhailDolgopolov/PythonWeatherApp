@@ -60,7 +60,6 @@ async def tom(update: Update, context: CallbackContext):
     print("sending tomorrow")
     await context.bot.send_photo(chat_id=chat_id, photo=pic["path"])
     metadata = read_json("metadata.json")
-    print(metadata)
     await update.message.reply_text(datetime.strptime(metadata[pic['day'].short_date], '%Y-%m-%dT%H:%M:%S').strftime(
         "Данные плучены %d.%m.%Y, в %H:%M"))
 async def send_tomorrow(update: Update, context: CallbackContext) -> int:
@@ -69,13 +68,15 @@ async def send_tomorrow(update: Update, context: CallbackContext) -> int:
 
 
 async def tt1(update: Update, context: CallbackContext) -> int:
-    await tom(update, context)
     await tod(update, context)
+    time.sleep(0.5)
+    await tom(update, context)
     return ConversationHandler.END
 
 async def tt2(update: Update, context: CallbackContext) -> int:
-    await tod(update, context)
     await tom(update, context)
+    time.sleep(0.5)
+    await tod(update, context)
     return ConversationHandler.END
 
 def main() -> None:
@@ -85,8 +86,8 @@ def main() -> None:
     application.add_handler(CommandHandler("today", send_today))
     application.add_handler(CommandHandler("tomorrow", send_tomorrow))
 
-    application.add_handler(MessageHandler(filters.Regex(re.compile(r'сегодня(?!.*завтра)', re.IGNORECASE)), send_today))
-    application.add_handler(MessageHandler(filters.Regex(re.compile(r'завтра(?!.*сегодня)', re.IGNORECASE)), send_today))
+    application.add_handler(MessageHandler(filters.Regex(re.compile(r'^(?!.*завтра)сегодня(?!.*завтра).*$', re.IGNORECASE)), send_today))
+    application.add_handler(MessageHandler(filters.Regex(re.compile(r'^(?!.*сегодня)завтра(?!.*сегодня).*$', re.IGNORECASE)), send_tomorrow))
     application.add_handler(MessageHandler(filters.Regex(re.compile(r'сегодня.*завтра', re.IGNORECASE)), tt1))
     application.add_handler(MessageHandler(filters.Regex(re.compile(r'завтра.*сегодня', re.IGNORECASE)), tt2))
 
