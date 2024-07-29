@@ -44,7 +44,7 @@ def rgb_to_hex(rgb_color):
     return '#%02x%02x%02x' % tuple(rgb_color)
 
 
-def get_and_render(offset, update_forecast=False, save_image=True, show=False, generate_new=False):
+def get_and_render(offset, save_image=True, show=False, generate_new=False):
 
     day = Day(offset)
     path = f"Images/{day.forecast_name}.png"
@@ -52,12 +52,11 @@ def get_and_render(offset, update_forecast=False, save_image=True, show=False, g
         return {"path": path, "day": day}
     else:
         forecast = Forecast()
-        data = ForecastData(forecast, day, update_forecast)
+        data = ForecastData(forecast, day)
         return render_forecast_data(data, sources=None, save=save_image, show=show)
 
 
 def render_forecast_data(data: ForecastData, sources: list[str] = None, save=True, show=False):
-    from scipy import interpolate
     if sources is None:
         sources = data.source_names
 
@@ -65,12 +64,12 @@ def render_forecast_data(data: ForecastData, sources: list[str] = None, save=Tru
     print(f"Rendering for {day.full_date}")
 
     fig, ax1 = plt.subplots(figsize=(6, 5))
-    Xaxis = data.time
+    x_axis = data.time
     main_plot = "temperature"
     for s in sources:
-        plt.plot(Xaxis, data.get_source(s)[main_plot], color=data.colormap[s], label=s, zorder=4)
+        plt.plot(x_axis, data.get_source(s)[main_plot], color=data.colormap[s], label=s, zorder=4)
 
-    plt.plot(Xaxis, data.mean_values[main_plot], color=[0.6]*3, alpha=0.5, linewidth=25, zorder=2)
+    plt.plot(x_axis, data.mean_values[main_plot], color=[0.6]*3, alpha=0.5, linewidth=25, zorder=2)
 
     sunspan = day.suntime
     plt.axvspan(sunspan[0], sunspan[1], alpha=0.3, color="#ebbf2f", zorder=0)
@@ -82,20 +81,14 @@ def render_forecast_data(data: ForecastData, sources: list[str] = None, save=Tru
     if not data.precipitation_exists:
         plt.ylim(bottom=bottom)
     if data.precipitation_exists:
-        color1 = hex_to_rgb("#98cefa")  # Uncertain
-        color2 = hex_to_rgb("#0026FF")  # Certain
-
         bottom -= 4
 
         bar_width = 0.33
         for i in range(len(sources)):
-            amount=np.array(data.get_source(sources[i])["precipitation"])
-            cubic_interpolation_model = interpolate.interp1d(Xaxis, amount, kind='cubic')
-            X_ = np.linspace(0, 23, 24*6)
-            Y_ = cubic_interpolation_model(X_)
-            plt.bar(Xaxis+bar_width*(i-1), amount, bar_width, bottom=bottom, color=data.colormap[sources[i]], zorder=4, linewidth=0)
-            # plt.plot(X_, Y_+bottom, color=data.colormap[sources[i]], zorder=4)
-        plt.plot(Xaxis, [bottom] * 24, color="black", zorder=5)
+            amount = np.array(data.get_source(sources[i])["precipitation"])
+            plt.bar(x_axis+bar_width*(i-1), amount, bar_width, bottom=bottom, color=data.colormap[sources[i]], zorder=4, linewidth=0)
+
+        plt.plot(x_axis, [bottom] * 24, color="black", zorder=5)
 
         ax2 = ax1.secondary_yaxis("right", functions=(lambda x: (x - bottom), lambda x: x - bottom))
         ax2.set_ylabel("Осадки, мм")
@@ -108,12 +101,12 @@ def render_forecast_data(data: ForecastData, sources: list[str] = None, save=Tru
     plt.hlines([lower_y, higher_y], [0, 0], [lower_x, higher_x], linestyle=(5, (10, 3)), color=[0.3] * 3, linewidth=1,
                zorder=3)
     ticks = plt.yticks()[0]
-    ticks=check_and_add_numbers(ticks, [lower_y, higher_y])
+    ticks = check_and_add_numbers(ticks, [lower_y, higher_y])
     plt.yticks(ticks)
 
     plt.grid(which="both", color="lightgray")
     plt.xlim(0, 23)
-    plt.xticks(Xaxis)
+    plt.xticks(x_axis)
     plt.title(f"Прогноз на {day.accs_day_name}, {day.D_month}", y=1.05)
 
     path = f"Images/{day.forecast_name}.png"
@@ -125,25 +118,3 @@ def render_forecast_data(data: ForecastData, sources: list[str] = None, save=Tru
     plt.close()
     return {"path": path, "day": day}
 
-
-def compare_history(d=1, column="temperature"):
-    start = datetime.today() + timedelta(days=d - 2)
-    number = start.strftime("%Y%m%d")
-    archived_path = f"archive/{number}.csv"
-    forecast_path = f"forecast/{number}-tomorrow.csv"
-    Xaxis = np.arange(0, 24)
-    archived = pd.read_csv(archived_path, dtype=np.float64, index_col="time")[column]
-    forecast_table = pd.read_csv(forecast_path, dtype=np.float64, index_col="time")
-    selected_columns = forecast_table.filter(regex=f'_{column}$')
-
-    forecast = selected_columns.mean(axis=1)
-
-    fig, ax1 = plt.subplots(figsize=(6, 5))
-
-    ax1.plot(Xaxis, archived, label="Данные того же дня")
-    ax1.plot(Xaxis, forecast, label="Прогноз днем ранее")
-    plt.xticks(Xaxis)
-    ax1.set_xlabel("Время, ч")
-    ax1.set_ylabel("Температура, °C")
-    plt.legend()
-    plt.show()

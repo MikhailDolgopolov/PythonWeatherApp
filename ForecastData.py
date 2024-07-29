@@ -1,10 +1,7 @@
 import os
-from pprint import pprint
 
 import numpy as np
 import pandas as pd
-
-from datetime import datetime, timedelta
 
 from Day import Day
 from Forecast import Forecast
@@ -16,10 +13,10 @@ class ForecastData:
     def source_names(self):
         return ["Foreca", "Gismeteo", "OpenMeteo"]
 
-    def __init__(self, forecast: Forecast, day: Day, update_forecast=False):
+    def __init__(self, forecast: Forecast, day: Day):
         self.colormap = {"Foreca": "green", "Gismeteo": "blue", "OpenMeteo": "red"}
         self.day = day
-        full_data = forecast.fetch_forecast(day, update_forecast)
+        full_data = forecast.fetch_forecast(day)
         columns = full_data.columns.drop(["precipitation-probability"])
         # print(full_data.columns)
         # print(full_data["precipitation-probability"])
@@ -45,8 +42,8 @@ class ForecastData:
         prob_per_hour = 0 if prob_count == 0 else sum(full_data["precipitation-probability"]) / prob_count
         self.precipitation_exists = prob_per_hour * prec_per_hour > 0.01
         if day.offset == 0:
-            pd.DataFrame(data=self.mean_values).to_csv(path_or_buf=f"{os.getcwd()}/archive/{day.short_date}.csv", index_label="time",
-                                                       index=True)
+            pd.DataFrame(data=self.mean_values).to_csv(path_or_buf=
+                                                       f"{os.getcwd()}/archive/{day.short_date}.csv", index_label="time", index=True)
 
     def get_source(self, name):
         return self.__dict[name]

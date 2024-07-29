@@ -1,13 +1,7 @@
-import re
+from datetime import datetime
+from typing import Dict, Union
 
 from redmail import gmail
-import smtplib
-import ssl
-from datetime import datetime
-from email.mime.image import MIMEImage
-from email.mime.multipart import MIMEMultipart
-from email.mime.text import MIMEText
-from typing import Dict, Union
 
 from Day import Day
 from ForecastRendering import get_and_render

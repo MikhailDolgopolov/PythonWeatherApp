@@ -1,16 +1,15 @@
+import concurrent.futures
+import time
 from os import path, mkdir
 
 import numpy as np
 import pandas as pd
 
 from Day import Day
-from helpers import read_json, write_json
+from MetadataController import MetadataController
 from Parsers.ForecaParser import ForecaParser
 from Parsers.GismeteoParser import GismeteoParser
 from Parsers.OpenMeteo import get_open_meteo
-import concurrent.futures
-import time
-from datetime import datetime, timedelta
 
 pd.set_option('display.width', 200)  # Increase the width to 200 characters
 pd.set_option('display.max_columns', 10)  # Increase the number of columns to display to 10
@@ -49,13 +48,6 @@ class Forecast:
 
         return foreca.result(), gismeteo.result(), openmeteo.result()
 
-    def log_forecast_update(self, day: Day):
-        metadata = read_json("metadata.json")
-        min_date = datetime.today() - timedelta(days=1)
-        max_date = datetime.today() + timedelta(days=1)
-        new_meta = {k: v for k, v in metadata.items() if min_date < datetime.strptime(k, "%Y%m%d") < max_date}
-        new_meta[day.short_date] = datetime.now().strftime('%Y-%m-%dT%H:%M:%S')
-        write_json(new_meta, "metadata.json")
     def get_pandas(self, day: Day, asnc=True):
         start = time.time()
         if asnc:
@@ -63,7 +55,7 @@ class Forecast:
         else:
             nested_forecast = list(self.get_raw_today() if day.offset == 0 else self.get_raw_tomorrow())
         end = time.time()
-        self.log_forecast_update(day)
+        MetadataController.update_with_now(day)
         print(f"With async={asnc} gathering weather has taken {end - start} seconds")
 
         openmeteo = nested_forecast[2][0]
@@ -85,13 +77,13 @@ class Forecast:
     def update_forecast(self, combined: pd.DataFrame, day:Day) -> pd.DataFrame:
         print("updating old values...")
         gis = self.__gismeteo.get_weather(day.date)
-        open, prob = get_open_meteo(day.offset + 1)
+        o_meteo, prob = get_open_meteo(day.offset + 1)
         fore = self.__foreca.get_weather(day.date)
 
         combined = combined.drop(labels=list(combined.filter(regex="gismeteo_", axis=1).columns), axis=1)
         fs = ["temperature", "precipitation", "wind-speed"]
         for s in fs:
-            combined[f"openmeteo_{s}"] = open[s]
+            combined[f"openmeteo_{s}"] = o_meteo[s]
             combined[f"foreca_{s}"] = combined[f"foreca_{s}"].combine_first(fore[s])
 
         gis = gis.rename(columns=lambda x: x if x == "time" else "gismeteo_" + x)
@@ -101,8 +93,10 @@ class Forecast:
         combined = combined.set_index("time")
         return combined
 
-    def fetch_forecast(self, day: Day, update=False) -> pd.DataFrame:
-        metadata = read_json("metadata.json")
+    def fetch_forecast(self, day: Day) -> pd.DataFrame:
+        update = False
+        if MetadataController.update_is_due(day):
+            update = True
         folder = "forecast"
         filename = f"{folder}/{day.forecast_name}.csv"
         if path.exists(folder):
@@ -110,8 +104,8 @@ class Forecast:
                 combined = pd.read_csv(filename, dtype=np.float64, index_col="time")
                 if update:
                     combined = self.update_forecast(combined, day)
-                    self.log_forecast_update(day)
                     combined.to_csv(path_or_buf=filename, index_label="time", index=True)
+                    MetadataController.update_with_now(day)
                     print(f"updated data saved at '{filename}'")
                 else:
                     print(f"found saved data for {day.full_date}")

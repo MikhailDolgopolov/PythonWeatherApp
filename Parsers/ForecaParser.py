@@ -1,5 +1,3 @@
-from pprint import pprint
-
 import pandas as pd
 from bs4 import BeautifulSoup
 
@@ -32,5 +30,6 @@ class ForecaParser(BaseParser):
                  row.find("span", "rain_mm").text.split()[0],
                  row.find("span", "wind_ms").text
                  ] for row in table.findAll("div", "hour")]
-        data = pd.DataFrame.from_records(data, columns=["time", "temperature", "precipitation", "wind-speed"]).astype(float)
+        data = pd.DataFrame.from_records(data,
+                                         columns=["time", "temperature", "precipitation", "wind-speed"]).astype(float)
         return data

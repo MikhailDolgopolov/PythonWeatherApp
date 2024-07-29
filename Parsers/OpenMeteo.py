@@ -1,9 +1,7 @@
 import numpy as np
 import openmeteo_requests
-
-import requests_cache
 import pandas as pd
-from matplotlib import pyplot as plt
+import requests_cache
 from retry_requests import retry
 
 from helpers import my_point
@@ -18,7 +16,7 @@ openmeteo = openmeteo_requests.Client(session=retry_session)
 url = "https://api.open-meteo.com/v1/forecast"
 
 
-def get_open_meteo(day=1)->tuple[np.array, np.array]:
+def get_open_meteo(day=1) -> tuple[np.array, np.array]:
     print("Loading OpenMeteo...")
     p = my_point()
     params = {

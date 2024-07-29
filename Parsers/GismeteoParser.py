@@ -1,13 +1,11 @@
 import datetime
-from typing import List, Any
 
 import pandas as pd
-from selenium import webdriver
-from selenium.webdriver.common.by import By
 from bs4 import BeautifulSoup
+from selenium.common import NoSuchElementException
+from selenium.webdriver.common.by import By
 
 from Parsers.BaseParser import BaseParser
-import time
 
 
 class GismeteoParser(BaseParser):
@@ -25,7 +23,7 @@ class GismeteoParser(BaseParser):
             # noinspection PyBroadException
             try:
                 tomorrow = self.driver.find_element(By.XPATH, "/html/body/main/div[1]/section[2]/div/a[2]")
-            except:
+            except NoSuchElementException:
                 tomorrow = self.driver.find_element(By.XPATH, "/html/body/section[4]/section/nav/a[3]")
             tomorrow.click()
             return BeautifulSoup(self.driver.page_source, "lxml")
