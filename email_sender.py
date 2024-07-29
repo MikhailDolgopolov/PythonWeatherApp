@@ -30,7 +30,7 @@ def send_red_email(today: Dict[str, Union[str, Day]], tomorrow: Dict[str, Union[
     gmail.password = config["gmail_password"]
     if receivers is None:
         receivers = read_receivers()
-    metadata = read_json("mail/metadata.json")
+    metadata = read_json("metadata.json")
     dates = []
     for day in [today, tomorrow]:
         dates.append(
