@@ -24,20 +24,6 @@
             </Attribute>
           </value>
         </entry>
-        <entry key="\forecast\20240726-0.csv">
-          <value>
-            <Attribute>
-              <option name="separator" value="," />
-            </Attribute>
-          </value>
-        </entry>
-        <entry key="\forecast\20240726-1.csv">
-          <value>
-            <Attribute>
-              <option name="separator" value="," />
-            </Attribute>
-          </value>
-        </entry>
         <entry key="\forecast\20240727-1.csv">
           <value>
             <Attribute>

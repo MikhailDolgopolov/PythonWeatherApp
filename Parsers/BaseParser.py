@@ -1,5 +1,6 @@
 from datetime import datetime, timedelta
 
+import pandas as pd
 from selenium import webdriver
 from selenium.webdriver.chrome.webdriver import WebDriver
 
@@ -11,13 +12,13 @@ class BaseParser:
         self.driver: WebDriver = webdriver.Chrome(options=options)
         # self.driver.maximize_window()
 
-    def get_weather(self, date) -> list[list[str]]:
+    def get_weather(self, date) -> pd.DataFrame:
         raise NotImplementedError("Subclasses should implement this method")
 
-    def get_weather_today(self):
+    def get_weather_today(self) -> pd.DataFrame:
         return self.get_weather(datetime.now())
 
-    def get_weather_tomorrow(self):
+    def get_weather_tomorrow(self) -> pd.DataFrame:
         return self.get_weather(datetime.now() + timedelta(days=1))
 
     def close(self):

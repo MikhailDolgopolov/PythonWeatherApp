@@ -1,5 +1,6 @@
 from pprint import pprint
 
+import pandas as pd
 from bs4 import BeautifulSoup
 
 from Parsers.BaseParser import BaseParser
@@ -22,7 +23,7 @@ class ForecaParser(BaseParser):
             print(ex)
             return None
 
-    def get_weather(self, date) -> list[list[str]]:
+    def get_weather(self, date) -> pd.DataFrame:
         print("Loading Foreca...")
         soup = self.parse_date(date)
         table = soup.find("div", class_="hourContainer")
@@ -31,5 +32,5 @@ class ForecaParser(BaseParser):
                  row.find("span", "rain_mm").text.split()[0],
                  row.find("span", "wind_ms").text
                  ] for row in table.findAll("div", "hour")]
-
+        data = pd.DataFrame.from_records(data, columns=["time", "temperature", "precipitation", "wind-speed"]).astype(float)
         return data

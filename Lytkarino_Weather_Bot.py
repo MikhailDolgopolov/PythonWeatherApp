@@ -31,8 +31,7 @@ async def start(update: Update, context: CallbackContext) -> None:
     await update.message.reply_text("""На графике показаны:
     - температура из трёх источников
     - средняя температура из тех же данных
-    - среднее количество осадков в час
-    - вероятность выпадения осадков, по OpenMeteo (ширина голубой полоски под столбчатой диаграммой)
+    - количество осадков в час из трех источников
     - световой день
     Также, насыщенность цвета столбчатой диаграммы показывает, насколько совпадает количество осадков в разных источниках.""")
 
@@ -48,7 +47,10 @@ async def tod(update: Update, context: CallbackContext):
 
     metadata = read_json("metadata.json")
     await update.message.reply_text(datetime.strptime(metadata[pic['day'].short_date], '%Y-%m-%dT%H:%M:%S').strftime(
-        "Данные плучены %d.%m.%Y, в %H:%M"))
+        "Данные в последний раз обновлены %d.%m.%Y, в %H:%M"))
+    print("After it has sent")
+
+
 async def send_today(update: Update, context: CallbackContext) -> int:
     await tod(update, context)
     return ConversationHandler.END
@@ -61,7 +63,7 @@ async def tom(update: Update, context: CallbackContext):
     await context.bot.send_photo(chat_id=chat_id, photo=pic["path"])
     metadata = read_json("metadata.json")
     await update.message.reply_text(datetime.strptime(metadata[pic['day'].short_date], '%Y-%m-%dT%H:%M:%S').strftime(
-        "Данные плучены %d.%m.%Y, в %H:%M"))
+        "Данные в последний раз обновлены %d.%m.%Y, в %H:%M"))
 async def send_tomorrow(update: Update, context: CallbackContext) -> int:
     await tom(update, context)
     return ConversationHandler.END

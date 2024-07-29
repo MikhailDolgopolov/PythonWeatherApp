@@ -44,7 +44,7 @@ def rgb_to_hex(rgb_color):
     return '#%02x%02x%02x' % tuple(rgb_color)
 
 
-def get_and_render(offset, save=True, show=False, generate_new=False):
+def get_and_render(offset, update_forecast=False, save_image=True, show=False, generate_new=False):
 
     day = Day(offset)
     path = f"Images/{day.forecast_name}.png"
@@ -52,8 +52,8 @@ def get_and_render(offset, save=True, show=False, generate_new=False):
         return {"path": path, "day": day}
     else:
         forecast = Forecast()
-        data = ForecastData(forecast, day)
-        return render_forecast_data(data, sources=None, save=save, show=show)
+        data = ForecastData(forecast, day, update_forecast)
+        return render_forecast_data(data, sources=None, save=save_image, show=show)
 
 
 def render_forecast_data(data: ForecastData, sources: list[str] = None, save=True, show=False):
@@ -62,8 +62,8 @@ def render_forecast_data(data: ForecastData, sources: list[str] = None, save=Tru
         sources = data.source_names
 
     day = data.day
-
     print(f"Rendering for {day.full_date}")
+
     fig, ax1 = plt.subplots(figsize=(6, 5))
     Xaxis = data.time
     main_plot = "temperature"
@@ -78,23 +78,17 @@ def render_forecast_data(data: ForecastData, sources: list[str] = None, save=Tru
     ax1.set_ylabel("Температура, °C")
     plt.legend()
 
-    bottom = np.min(data.mean_values[main_plot]) - 3
+    bottom = np.min(data.mean_values[main_plot]) - 5
     if not data.precipitation_exists:
         plt.ylim(bottom=bottom)
     if data.precipitation_exists:
         color1 = hex_to_rgb("#98cefa")  # Uncertain
         color2 = hex_to_rgb("#0026FF")  # Certain
 
-        colors = [rgb_to_hex(interpolate_color(color1, color2, factor)) for factor in data.precp_certainty]
-        # colors = [rgb_to_hex(interpolate_color(color1, color2, factor)) for factor in [0]*24]
-        bottom -= 5
-        prob_height = 1  # height of the precipitation probability graph
-        # plt.bar(Xaxis, data.mean_values["precipitation"], color=colors, bottom=bottom, linewidth=0)
-        plt.fill_between(Xaxis, bottom, -prob_height * data.precipitation_probability / 100 + bottom,
-                         color='#abebff')
-        bar_width = 0.3
+        bottom -= 4
+
+        bar_width = 0.33
         for i in range(len(sources)):
-            # print(data.get_source(s)["precipitation"])
             amount=np.array(data.get_source(sources[i])["precipitation"])
             cubic_interpolation_model = interpolate.interp1d(Xaxis, amount, kind='cubic')
             X_ = np.linspace(0, 23, 24*6)
@@ -105,9 +99,6 @@ def render_forecast_data(data: ForecastData, sources: list[str] = None, save=Tru
 
         ax2 = ax1.secondary_yaxis("right", functions=(lambda x: (x - bottom), lambda x: x - bottom))
         ax2.set_ylabel("Осадки, мм")
-
-        ybottom, ytop = -prob_height + bottom, max(data.mean_values[main_plot]) + 6
-        plt.ylim(bottom=ybottom)
 
     d = data.mean_values[main_plot]
     lower_x = np.argmin(d)

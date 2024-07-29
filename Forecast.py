@@ -49,6 +49,13 @@ class Forecast:
 
         return foreca.result(), gismeteo.result(), openmeteo.result()
 
+    def log_forecast_update(self, day: Day):
+        metadata = read_json("metadata.json")
+        min_date = datetime.today() - timedelta(days=1)
+        max_date = datetime.today() + timedelta(days=1)
+        new_meta = {k: v for k, v in metadata.items() if min_date < datetime.strptime(k, "%Y%m%d") < max_date}
+        new_meta[day.short_date] = datetime.now().strftime('%Y-%m-%dT%H:%M:%S')
+        write_json(new_meta, "metadata.json")
     def get_pandas(self, day: Day, asnc=True):
         start = time.time()
         if asnc:
@@ -56,30 +63,12 @@ class Forecast:
         else:
             nested_forecast = list(self.get_raw_today() if day.offset == 0 else self.get_raw_tomorrow())
         end = time.time()
-        metadata = read_json("metadata.json")
-        min_date = datetime.today() - timedelta(days=1)
-        max_date = datetime.today() + timedelta(days=1)
-        new_meta = {k: v for k, v in metadata.items() if min_date < datetime.strptime(k, "%Y%m%d") < max_date}
-        new_meta[day.short_date] = datetime.now().strftime('%Y-%m-%dT%H:%M:%S')
-        write_json(new_meta, "metadata.json")
+        self.log_forecast_update(day)
         print(f"With async={asnc} gathering weather has taken {end - start} seconds")
 
-        for i in range(2):
-            nested_forecast[i] = pd.DataFrame.from_records(nested_forecast[i],
-                                                           columns=["time", "temperature", "precipitation",
-                                                                    "wind-speed"]).astype(float)
-        openmeteo = pd.DataFrame.from_records(nested_forecast[2][0], columns=["time", "temperature", "precipitation",
-                                                                              "wind-speed"])
+        openmeteo = nested_forecast[2][0]
         prob = pd.DataFrame({"time": openmeteo["time"], "precipitation-probability": nested_forecast[2][1]})
         foreca, gis = nested_forecast[0], nested_forecast[1]
-
-        # stregth = np.random.uniform(7, 18, size=3)
-        # peak = np.random.uniform(6,18, size=3)
-        # length = np.random.uniform(2,5, size=3)
-        #
-        # foreca["precipitation"]=np.exp(-np.power(np.arange(0,len(foreca))-peak[0],2)/length[0])*stregth[0]
-        # gis["precipitation"]=np.exp(-np.power(np.arange(0,24,3)-peak[1],2)/length[1])*stregth[1]
-        # openmeteo["precipitation"]=np.exp(-np.power(np.arange(0,24)-peak[2],2)/length[2])*stregth[2]
 
         foreca = foreca.rename(columns=lambda x: x if x == "time" else "foreca_" + x)
         gis = gis.rename(columns=lambda x: x if x == "time" else "gismeteo_" + x)
@@ -93,14 +82,39 @@ class Forecast:
 
         return combined
 
+    def update_forecast(self, combined: pd.DataFrame, day:Day) -> pd.DataFrame:
+        print("updating old values...")
+        gis = self.__gismeteo.get_weather(day.date)
+        open, prob = get_open_meteo(day.offset + 1)
+        fore = self.__foreca.get_weather(day.date)
+
+        combined = combined.drop(labels=list(combined.filter(regex="gismeteo_", axis=1).columns), axis=1)
+        fs = ["temperature", "precipitation", "wind-speed"]
+        for s in fs:
+            combined[f"openmeteo_{s}"] = open[s]
+            combined[f"foreca_{s}"] = combined[f"foreca_{s}"].combine_first(fore[s])
+
+        gis = gis.rename(columns=lambda x: x if x == "time" else "gismeteo_" + x)
+        combined = pd.merge(combined, gis, on="time", how="left")
+        combined["precipitation_probability"] = prob
+        combined = combined.interpolate(method="linear")
+        combined = combined.set_index("time")
+        return combined
+
     def fetch_forecast(self, day: Day, update=False) -> pd.DataFrame:
+        metadata = read_json("metadata.json")
         folder = "forecast"
         filename = f"{folder}/{day.forecast_name}.csv"
         if path.exists(folder):
             if path.exists(filename):
                 combined = pd.read_csv(filename, dtype=np.float64, index_col="time")
-
-                print(f"found saved data for {day.full_date}")
+                if update:
+                    combined = self.update_forecast(combined, day)
+                    self.log_forecast_update(day)
+                    combined.to_csv(path_or_buf=filename, index_label="time", index=True)
+                    print(f"updated data saved at '{filename}'")
+                else:
+                    print(f"found saved data for {day.full_date}")
                 return combined
             else:
                 print(f"no saved data found for {day.full_date}")

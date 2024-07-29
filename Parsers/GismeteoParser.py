@@ -1,6 +1,7 @@
 import datetime
 from typing import List, Any
 
+import pandas as pd
 from selenium import webdriver
 from selenium.webdriver.common.by import By
 from bs4 import BeautifulSoup
@@ -31,7 +32,7 @@ class GismeteoParser(BaseParser):
         else:
             print("Other days are not supported")
 
-    def get_weather(self, date) -> list[list[str | int | float]]:
+    def get_weather(self, date) -> pd.DataFrame:
         print("Loading Gismeteo...")
         soup = self.parse_page(date)
 
@@ -46,4 +47,6 @@ class GismeteoParser(BaseParser):
         wind = [list(w.strings) for w in wind_row_items]
         wind = [int(item) if item.isdigit() else 0 for sublist in wind for item in sublist]
 
-        return [[clocks[i], int(temps[i]), float(mm_percp[i].replace(",", ".")), wind[i]] for i in range(len(clocks))]
+        data = [[clocks[i], int(temps[i]), float(mm_percp[i].replace(",", ".")), wind[i]] for i in range(len(clocks))]
+        return pd.DataFrame.from_records(data, columns=["time", "temperature", "precipitation", "wind-speed"]).astype(
+            float)

@@ -7,5 +7,5 @@ delete_old_files()
 
 forecast = Forecast()
 
-a = ForecastData(forecast, Day(0))
-b = ForecastData(forecast, Day(1))
+a = ForecastData(forecast, Day(0), False)
+b = ForecastData(forecast, Day(1), False)
