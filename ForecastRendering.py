@@ -53,12 +53,11 @@ def get_and_render(offset, save_image=True, show=False, generate_new=False):
     else:
         forecast = Forecast()
         data = ForecastData(forecast, day)
-        return render_forecast_data(data, sources=None, save=save_image, show=show)
+        return render_forecast_data(data, save=save_image, show=show)
 
 
-def render_forecast_data(data: ForecastData, sources: list[str] = None, save=True, show=False):
-    if sources is None:
-        sources = data.source_names
+def render_forecast_data(data: ForecastData, save=True, show=False) -> dict[str, str | Day]:
+    sources = data.source_names
 
     day = data.day
     print(f"Rendering for {day.full_date}")

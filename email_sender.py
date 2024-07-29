@@ -57,4 +57,4 @@ def send_red_email(today: Dict[str, Union[str, Day]], tomorrow: Dict[str, Union[
     print("Done with emails")
 
 
-send_red_email(get_and_render(0), get_and_render(1))
+

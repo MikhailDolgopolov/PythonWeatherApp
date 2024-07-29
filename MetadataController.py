@@ -36,3 +36,14 @@ class MetadataController:
         threshold = timedelta(hours=2) if day.offset == 0 else timedelta(hours=3)
 
         return diff > threshold
+
+    @classmethod
+    def update_is_overdue(cls, day: Day) -> bool:
+        last = cls.get_last_update(day)
+        if last is None:
+            return True
+        diff = datetime.now() - last
+        threshold = timedelta(hours=6)
+
+        return diff > threshold
+

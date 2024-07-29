@@ -8,7 +8,8 @@ from telegram.ext import CommandHandler, CallbackContext, Application, Conversat
 
 from Day import Day
 from Forecast import Forecast
-from ForecastRendering import get_and_render
+from ForecastData import ForecastData
+from ForecastRendering import get_and_render, render_forecast_data
 from MetadataController import MetadataController
 from helpers import read_json
 
@@ -40,26 +41,38 @@ async def start(update: Update, context: CallbackContext) -> None:
     - световой день
     Также, насыщенность цвета столбчатой диаграммы показывает, насколько совпадает количество осадков в разных источниках.""")
 
+async def ensure_freshness(offset:int, telegram:Update) -> dict[str, str | Day]:
+    data_to_send = {}
+    if MetadataController.update_is_overdue(Day(offset)):
+        await telegram.message.reply_text("Подождите, нужно получить актуальные данные...")
+        new_data = fetch_forecast_thread(offset)
+        await telegram.message.reply_text("Рисуем график...")
+        data_to_send = render_forecast_data(new_data)
+        return data_to_send
 
-def fetch_forecast_thread(day_number):
+    data_to_send = get_and_render(offset)
+    if MetadataController.update_is_due(Day(offset)):
+        threading.Thread(target=fetch_forecast_thread, args=(offset,)).start()
+    return data_to_send
+
+
+
+def fetch_forecast_thread(day_number) -> ForecastData:
+    print("Запрашиваю новые данные")
     forecast = Forecast()
     day = Day(day_number)
-    print("processing....")
-    time.sleep(15)
-    forecast.fetch_forecast(day)
-    print("done all processing")
+    return ForecastData(forecast, day)
 
 
 async def tod(update: Update, context: CallbackContext):
     chat_id = update.message.chat_id
-    pic = get_and_render(TODAY)
+
+    pic = await ensure_freshness(TODAY, update)
 
     await context.bot.send_photo(chat_id=chat_id, photo=pic["path"])
     await update.message.reply_text(MetadataController.get_last_update(pic["day"]).strftime(
         "Данные в последний раз обновлены %d.%m.%Y, в %H:%M"))
 
-    print("Checking update")
-    threading.Thread(target=fetch_forecast_thread, args=(0,)).start()
 
 
 async def send_today(update: Update, context: CallbackContext) -> int:
@@ -69,13 +82,10 @@ async def send_today(update: Update, context: CallbackContext) -> int:
 
 async def tom(update: Update, context: CallbackContext):
     chat_id = update.message.chat_id
-    pic = get_and_render(TOMORROW)
-    print("sending tomorrow")
+    pic = await ensure_freshness(TOMORROW, update)
     await context.bot.send_photo(chat_id=chat_id, photo=pic["path"])
     await update.message.reply_text(MetadataController.get_last_update(pic["day"]).strftime(
         "Данные в последний раз обновлены %d.%m.%Y, в %H:%M"))
-    print("Checking update")
-    threading.Thread(target=fetch_forecast_thread, args=(1,)).start()
 
 
 async def send_tomorrow(update: Update, context: CallbackContext) -> int:
