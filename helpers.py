@@ -1,7 +1,10 @@
 import json
 import os
+import re
 import time
 import random
+from datetime import datetime, timedelta
+from glob import glob
 from typing import Union
 
 import numpy as np
@@ -50,3 +53,17 @@ def check_and_add_numbers(arr, nums, tolerance=1):
 def random_delay(start=1, end=5):
     time.sleep(random.uniform(start, end))
 
+
+def delete_old_files():
+    folders = ["forecast"]
+    date = datetime.today() - timedelta(days=1)
+    number = int(date.strftime("%Y%m%d"))
+    to_delete = []
+    for folder in folders:
+        for file in glob(f'{folder}\\*.*'):
+            match = re.search(r'\d+', file)
+            if match and int(match.group()) < number:
+                to_delete.append(file)
+    for p in to_delete:
+        os.remove(p)
+    print(f"Removed {len(to_delete)} files.")

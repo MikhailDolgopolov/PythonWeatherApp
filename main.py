@@ -1,7 +1,7 @@
 from Day import Day
 from ForecastData import ForecastData
 from Forecast import Forecast
-from FileManager import delete_old_files
+from helpers import delete_old_files
 from ForecastRendering import get_and_render
 from email_sender import send_red_email
 

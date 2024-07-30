@@ -44,7 +44,6 @@ async def start(update: Update, context: CallbackContext) -> None:
 
 
 async def ensure_freshness(offset:int, telegram:Update) -> dict[str, str | Day]:
-    data_to_send = {}
     if MetadataController.update_is_overdue(Day(offset)):
         await telegram.message.reply_text("Подождите, нужно получить актуальные данные...")
         new_data = fetch_forecast_thread(offset)

@@ -6,6 +6,7 @@ import numpy as np
 import pandas as pd
 
 from Day import Day
+from helpers import delete_old_files
 from MetadataController import MetadataController
 from Parsers.ForecaParser import ForecaParser
 from Parsers.GismeteoParser import GismeteoParser
@@ -18,7 +19,7 @@ pd.set_option('display.max_colwidth', 50)  # Set the max column width to 50 char
 
 class Forecast:
     def __init__(self):
-
+        delete_old_files()
         self.__foreca = ForecaParser()
         self.__gismeteo = GismeteoParser()
 
