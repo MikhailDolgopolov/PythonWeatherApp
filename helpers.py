@@ -1,5 +1,7 @@
 import json
 import os
+import time
+import random
 from typing import Union
 
 import numpy as np
@@ -43,3 +45,8 @@ def check_and_add_numbers(arr, nums, tolerance=1):
 
     result.extend(to_add)
     return np.array(result)
+
+
+def random_delay(start=1, end=5):
+    time.sleep(random.uniform(start, end))
+

@@ -1,3 +1,4 @@
+import datetime
 import logging
 import re
 import threading
@@ -41,6 +42,7 @@ async def start(update: Update, context: CallbackContext) -> None:
     - световой день
     Также, насыщенность цвета столбчатой диаграммы показывает, насколько совпадает количество осадков в разных источниках.""")
 
+
 async def ensure_freshness(offset:int, telegram:Update) -> dict[str, str | Day]:
     data_to_send = {}
     if MetadataController.update_is_overdue(Day(offset)):
@@ -56,9 +58,20 @@ async def ensure_freshness(offset:int, telegram:Update) -> dict[str, str | Day]:
     return data_to_send
 
 
+def periodic_task():
+    forecast = Forecast()
+    td, tm = Day(TODAY), Day(TOMORROW)
+    while True:
+        if MetadataController.update_is_overdue(td):
+            ForecastData(forecast, td)
+        if MetadataController.update_is_overdue(tm):
+            ForecastData(forecast, tm)
+        print(datetime.datetime.now(), "new automatic update tried")
+        time.sleep(3*3600)
+
 
 def fetch_forecast_thread(day_number) -> ForecastData:
-    print("Запрашиваю новые данные")
+    print(datetime.datetime.now(), "Запрашиваю новые данные")
     forecast = Forecast()
     day = Day(day_number)
     return ForecastData(forecast, day)
@@ -123,6 +136,9 @@ def main() -> None:
 
     # Run the bot until the user presses Ctrl-C
     application.run_polling(allowed_updates=Update.ALL_TYPES)
+
+    periodic_thread = threading.Thread(target=periodic_task, daemon=True)
+    periodic_thread.start()
 
 
 if __name__ == "__main__":

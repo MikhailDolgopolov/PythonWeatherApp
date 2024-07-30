@@ -18,8 +18,7 @@ class ForecastData:
         self.day = day
         full_data = forecast.fetch_forecast(day)
         columns = full_data.columns.drop(["precipitation-probability"])
-        # print(full_data.columns)
-        # print(full_data["precipitation-probability"])
+
         factors_set = set()
         for col in columns:
             before, after = col.split('_', 1)

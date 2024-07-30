@@ -32,4 +32,5 @@ class ForecaParser(BaseParser):
                  ] for row in table.findAll("div", "hour")]
         data = pd.DataFrame.from_records(data,
                                          columns=["time", "temperature", "precipitation", "wind-speed"]).astype(float)
+        super().close()
         return data

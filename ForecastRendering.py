@@ -65,9 +65,15 @@ def render_forecast_data(data: ForecastData, save=True, show=False) -> dict[str,
     fig, ax1 = plt.subplots(figsize=(6, 5))
     x_axis = data.time
     main_plot = "temperature"
+    to_remove = []
     for s in sources:
-        plt.plot(x_axis, data.get_source(s)[main_plot], color=data.colormap[s], label=s, zorder=4)
-
+        plot_line = data.get_source(s)[main_plot]
+        if plot_line.isna().all():
+            to_remove.append(s)
+            continue
+        plt.plot(x_axis, plot_line, color=data.colormap[s], label=s, zorder=4)
+    for empty in to_remove:
+        sources.remove(empty)
     plt.plot(x_axis, data.mean_values[main_plot], color=[0.6]*3, alpha=0.5, linewidth=25, zorder=2)
 
     sunspan = day.suntime

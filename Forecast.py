@@ -55,7 +55,6 @@ class Forecast:
         else:
             nested_forecast = list(self.get_raw_today() if day.offset == 0 else self.get_raw_tomorrow())
         end = time.time()
-        MetadataController.update_with_now(day)
         print(f"With async={asnc} gathering weather has taken {end - start} seconds")
 
         openmeteo = nested_forecast[2][0]
@@ -95,7 +94,7 @@ class Forecast:
 
     def fetch_forecast(self, day: Day) -> pd.DataFrame:
         update = False
-        if MetadataController.update_is_due(day):
+        if MetadataController.update_is_due(day) or MetadataController.update_is_overdue(day):
             update = True
         folder = "forecast"
         filename = f"{folder}/{day.forecast_name}.csv"
@@ -117,5 +116,6 @@ class Forecast:
             mkdir(folder)
         data = self.get_pandas(day)
         data.to_csv(path_or_buf=filename, index_label="time", index=True)
+        MetadataController.update_with_now(day)
         print(f"new data saved at '{filename}'")
         return data
