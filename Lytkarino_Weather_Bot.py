@@ -16,7 +16,8 @@ from helpers import read_json
 
 # Set up logging
 logging.basicConfig(format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
-                    level=logging.INFO)
+                    level=logging.WARNING)
+
 
 # Telegram bot API token
 TOKEN = read_json("secrets.json")["telegram_token"]
@@ -58,6 +59,7 @@ async def ensure_freshness(offset:int, telegram:Update) -> dict[str, str | Day]:
 
 
 def periodic_task():
+    print("Auto-updates started")
     forecast = Forecast()
     td, tm = Day(TODAY), Day(TOMORROW)
     while True:
@@ -84,7 +86,6 @@ async def tod(update: Update, context: CallbackContext):
     await context.bot.send_photo(chat_id=chat_id, photo=pic["path"])
     await update.message.reply_text(MetadataController.get_last_update(pic["day"]).strftime(
         "Данные в последний раз обновлены %d.%m.%Y, в %H:%M"))
-
 
 
 async def send_today(update: Update, context: CallbackContext) -> int:
@@ -121,6 +122,9 @@ async def tt2(update: Update, context: CallbackContext) -> int:
 
 def main() -> None:
     application = Application.builder().token(TOKEN).build()
+
+    threading.Thread(target=periodic_task, daemon=True).start()
+
     application.add_handler(CommandHandler("start", start))
     application.add_handler(CommandHandler("today", send_today))
     application.add_handler(CommandHandler("tomorrow", send_tomorrow))
@@ -135,9 +139,6 @@ def main() -> None:
 
     # Run the bot until the user presses Ctrl-C
     application.run_polling(allowed_updates=Update.ALL_TYPES)
-
-    periodic_thread = threading.Thread(target=periodic_task, daemon=True)
-    periodic_thread.start()
 
 
 if __name__ == "__main__":
