@@ -12,7 +12,7 @@ from Forecast import Forecast
 from ForecastData import ForecastData
 from ForecastRendering import get_and_render, render_forecast_data
 from MetadataController import MetadataController
-from helpers import read_json
+from helpers import read_json, delete_old_files
 
 # Set up logging
 logging.basicConfig(format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
@@ -70,6 +70,7 @@ def periodic_task():
         if MetadataController.update_is_overdue(tm):
             ForecastData(forecast, tm)
             changed = True
+        delete_old_files()
         print(datetime.datetime.now(), "forecast automatically updated" if changed else "update unnecessary")
         time.sleep(4.5*3600)
 
