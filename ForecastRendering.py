@@ -88,10 +88,11 @@ def render_forecast_data(data: ForecastData, save=True, show=False) -> dict[str,
     if data.precipitation_exists:
         bottom -= 4
 
-        bar_width = 0.33
+        bar_width = 1/len(sources)
+        shift = (len(sources)-1)*0.5
         for i in range(len(sources)):
             amount = np.array(data.get_source(sources[i])["precipitation"])
-            plt.bar(x_axis+bar_width*(i-1), amount, bar_width, bottom=bottom, color=data.colormap[sources[i]], zorder=4, linewidth=0)
+            plt.bar(x_axis+bar_width*(i-shift), amount, bar_width, bottom=bottom, color=data.colormap[sources[i]], zorder=4, linewidth=0)
 
         plt.plot(x_axis, [bottom] * 24, color="black", zorder=5)
 

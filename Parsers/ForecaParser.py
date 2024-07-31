@@ -24,6 +24,9 @@ class ForecaParser(BaseParser):
     def get_weather(self, date) -> pd.DataFrame:
         print("Loading Foreca...")
         soup = self.parse_date(date)
+        if soup is None:
+            print("Couldn't parse Foreca")
+            return pd.DataFrame({"time":[], "temperature":[], "precipitation":[], "wind-speed":[]}).astype(float)
         table = soup.find("div", class_="hourContainer")
         data = [[row.find("span", "time_24h").text,
                  int(row.find("span", "temp_c").text),

@@ -43,7 +43,7 @@ class MetadataController:
         if last is None:
             return True
         diff = datetime.now() - last
-        threshold = timedelta(hours=6)
+        threshold = timedelta(hours=4)
 
         return diff > threshold
 

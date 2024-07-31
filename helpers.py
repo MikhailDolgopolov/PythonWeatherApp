@@ -55,7 +55,7 @@ def random_delay(start=1, end=5):
 
 
 def delete_old_files():
-    folders = ["forecast"]
+    folders = ["forecast", "Images"]
     date = datetime.today() - timedelta(days=1)
     number = int(date.strftime("%Y%m%d"))
     to_delete = []

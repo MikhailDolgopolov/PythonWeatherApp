@@ -16,8 +16,8 @@ from helpers import read_json
 
 # Set up logging
 logging.basicConfig(format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
-                    level=logging.WARNING)
-
+                    level=logging.INFO)
+logging.getLogger("httpx").setLevel(logging.WARNING)
 
 # Telegram bot API token
 TOKEN = read_json("secrets.json")["telegram_token"]
@@ -33,22 +33,21 @@ async def start(update: Update, context: CallbackContext) -> None:
     time.sleep(1)
     await update.message.reply_text(
         "Мне можно отправить любое сообщение со словами 'сегодня' или 'завтра', и я отправлю прогноз. Вот пример:")
-    time.sleep(0.5)
+    time.sleep(1)
     await context.bot.send_photo(chat_id=update.message.chat_id, photo="demo.png")
     time.sleep(2)
     await update.message.reply_text("""На графике показаны:
-    - температура из трёх источников
-    - средняя температура из тех же данных
-    - количество осадков в час из трех источников
+    - температура из трёх источников (Foreca.ru, Gismeteo.ru, Open-Meteo.com)
+    - количество осадков в час
     - световой день
-    Также, насыщенность цвета столбчатой диаграммы показывает, насколько совпадает количество осадков в разных источниках.""")
+    """)
 
 
 async def ensure_freshness(offset:int, telegram:Update) -> dict[str, str | Day]:
     if MetadataController.update_is_overdue(Day(offset)):
         await telegram.message.reply_text("Подождите, нужно получить актуальные данные...")
         new_data = fetch_forecast_thread(offset)
-        await telegram.message.reply_text("Рисуем график...")
+        await telegram.message.reply_text("Рисую график...")
         data_to_send = render_forecast_data(new_data)
         return data_to_send
 
@@ -63,12 +62,16 @@ def periodic_task():
     forecast = Forecast()
     td, tm = Day(TODAY), Day(TOMORROW)
     while True:
+        changed = False
         if MetadataController.update_is_overdue(td):
             ForecastData(forecast, td)
+            changed = True
+
         if MetadataController.update_is_overdue(tm):
             ForecastData(forecast, tm)
-        print(datetime.datetime.now(), "new automatic update tried")
-        time.sleep(3*3600)
+            changed = True
+        print(datetime.datetime.now(), "forecast automatically updated" if changed else "update unnecessary")
+        time.sleep(4.5*3600)
 
 
 def fetch_forecast_thread(day_number) -> ForecastData:
@@ -83,8 +86,7 @@ async def tod(update: Update, context: CallbackContext):
 
     pic = await ensure_freshness(TODAY, update)
 
-    await context.bot.send_photo(chat_id=chat_id, photo=pic["path"])
-    await update.message.reply_text(MetadataController.get_last_update(pic["day"]).strftime(
+    await context.bot.send_photo(chat_id=chat_id, photo=pic["path"], caption=MetadataController.get_last_update(pic["day"]).strftime(
         "Данные в последний раз обновлены %d.%m.%Y, в %H:%M"))
 
 
@@ -96,9 +98,9 @@ async def send_today(update: Update, context: CallbackContext) -> int:
 async def tom(update: Update, context: CallbackContext):
     chat_id = update.message.chat_id
     pic = await ensure_freshness(TOMORROW, update)
-    await context.bot.send_photo(chat_id=chat_id, photo=pic["path"])
-    await update.message.reply_text(MetadataController.get_last_update(pic["day"]).strftime(
-        "Данные в последний раз обновлены %d.%m.%Y, в %H:%M"))
+    await context.bot.send_photo(chat_id=chat_id, photo=pic["path"],
+                                 caption=MetadataController.get_last_update(pic["day"]).strftime(
+                                     "Данные в последний раз обновлены %d.%m.%Y, в %H:%M"))
 
 
 async def send_tomorrow(update: Update, context: CallbackContext) -> int:

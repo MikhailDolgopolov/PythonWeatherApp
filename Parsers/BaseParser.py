@@ -23,15 +23,24 @@ class BaseParser:
         options.add_argument("--incognito")
         options.add_argument("--disable-plugins-discovery")
 
-        user_agent = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36"
-        options.add_argument(f"user-agent={user_agent}")
+        user_agents = ["Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36",
+                "Mozilla/5.0 (Macintosh; Intel Mac OS X 10.15; rv:89.0) Gecko/20100101 Firefox/89.0",
+                "Mozilla/5.0 (Windows NT 10.0; Win64; x64; Trident/7.0; rv:11.0) like Gecko",
+                "Opera/9.80 (Windows NT 10.0; Win64; x64) Presto/2.12.388 Version/12.18",]
+        options.add_argument(f"user-agent={random.choice(user_agents)}")
         self.driver: WebDriver = webdriver.Chrome(options=options)
         stealth(self.driver,
                 languages=["ru-Ru", "ru"],
                 vendor="Google Inc.",
-                platform="Win32",
+                platform="Win64",
                 webgl_vendor="Intel Inc.",
-                renderer="Intel Iris OpenGL Engine",
+                renderer=random.choice(["Intel Iris OpenGL Engine",
+                                        "Intel(R) UHD Graphics 620",
+                                        "NVIDIA GeForce GTX 1050 Ti",
+                                        "AMD Radeon RX 580",
+                                        "Intel(R) HD Graphics 4000",
+                                        "NVIDIA GeForce RTX 2080",
+                                        "AMD Radeon Vega 8 Graphics",]),
                 fix_hairline=True,
                 )
         try:
