@@ -40,9 +40,6 @@ class ForecastData:
         prec_per_hour = 0 if prec_count == 0 else sum(self.mean_values["precipitation"]) / prec_count
         prob_per_hour = 0 if prob_count == 0 else sum(full_data["precipitation-probability"]) / prob_count
         self.precipitation_exists = prob_per_hour * prec_per_hour > 0.01
-        if day.offset == 0:
-            pd.DataFrame(data=self.mean_values).to_csv(path_or_buf=
-                                                       f"{os.getcwd()}/archive/{day.short_date}.csv", index_label="time", index=True)
 
     def get_source(self, name):
         return self.__dict[name]
