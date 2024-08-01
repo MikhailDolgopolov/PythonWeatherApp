@@ -1,3 +1,6 @@
+import random
+import time
+
 import pandas as pd
 from bs4 import BeautifulSoup
 
@@ -5,17 +8,19 @@ from Parsers.BaseParser import BaseParser
 
 
 class ForecaParser(BaseParser):
-    def __init__(self):
+    def __init__(self, *args):
         self.__url_template = "https://www.foreca.ru/Russia/Lytkarino?details="
-        super().__init__()
+        super().__init__(*args)
 
     def parse_date(self, date) -> BeautifulSoup | None:
         detail = date.strftime("%Y%m%d")
         url = self.__url_template + detail
         try:
             self.driver.get(url)
+            time.sleep(random.uniform(5, 10))
             source = self.driver.page_source
             soup = BeautifulSoup(source, "lxml")
+            super().close()
             return soup
         except Exception as ex:
             print(ex)
@@ -26,6 +31,7 @@ class ForecaParser(BaseParser):
         soup = self.parse_date(date)
         if soup is None:
             print("Couldn't parse Foreca")
+
             return pd.DataFrame({"time":[], "temperature":[], "precipitation":[], "wind-speed":[]}).astype(float)
         table = soup.find("div", class_="hourContainer")
         data = [[row.find("span", "time_24h").text,

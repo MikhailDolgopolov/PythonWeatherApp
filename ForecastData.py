@@ -40,6 +40,7 @@ class ForecastData:
         prec_per_hour = 0 if prec_count == 0 else sum(self.mean_values["precipitation"]) / prec_count
         prob_per_hour = 0 if prob_count == 0 else sum(full_data["precipitation-probability"]) / prob_count
         self.precipitation_exists = prob_per_hour * prec_per_hour > 0.01
+        forecast.finish()
 
     def get_source(self, name):
         return self.__dict[name]

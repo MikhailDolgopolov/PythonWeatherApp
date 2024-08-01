@@ -6,7 +6,7 @@ import numpy as np
 import pandas as pd
 
 from Day import Day
-from helpers import delete_old_files
+
 from MetadataController import MetadataController
 from Parsers.ForecaParser import ForecaParser
 from Parsers.GismeteoParser import GismeteoParser
@@ -19,8 +19,8 @@ pd.set_option('display.max_colwidth', 50)  # Set the max column width to 50 char
 
 class Forecast:
     def __init__(self):
-        self.__foreca = ForecaParser()
-        self.__gismeteo = GismeteoParser()
+        self.__foreca = ForecaParser("Foreca")
+        self.__gismeteo = GismeteoParser("Gismeteo")
 
     def get_raw_today(self):
         return self.__foreca.get_weather_today(), self.__gismeteo.get_weather_today(), get_open_meteo(1)
@@ -119,3 +119,7 @@ class Forecast:
         MetadataController.update_with_now(day)
         print(f"new data saved at '{filename}'")
         return data
+
+    def finish(self):
+        self.__foreca.close()
+        self.__gismeteo.close()

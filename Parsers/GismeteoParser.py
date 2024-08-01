@@ -12,9 +12,9 @@ from helpers import random_delay
 
 
 class GismeteoParser(BaseParser):
-    def __init__(self):
+    def __init__(self, *args):
         self.__url = "https://www.gismeteo.ru/weather-lytkarino-12640/"
-        super().__init__()
+        super().__init__(*args)
 
     def parse_page(self, date) -> BeautifulSoup | None:
         today = datetime.datetime.today()
@@ -36,9 +36,8 @@ class GismeteoParser(BaseParser):
                 return None
             return BeautifulSoup(self.driver.page_source, "lxml")
         if diff == 1:
-            tomorrow = None
             # noinspection PyBroadException
-            retries =0
+            retries = 0
             while retries<max_retry:
                 retries+=1
                 try:
@@ -57,6 +56,7 @@ class GismeteoParser(BaseParser):
                 return None
             random_delay()
             tomorrow.click()
+            random_delay()
             return BeautifulSoup(self.driver.page_source, "lxml")
         else:
             print("Other days are not supported")
@@ -66,6 +66,7 @@ class GismeteoParser(BaseParser):
         soup = self.parse_page(date)
         if soup is None:
             print("Couldn't parse Gismeteo")
+            super().close()
             return pd.DataFrame({"time":[], "temperature":[], "precipitation":[], "wind-speed":[]}).astype(float)
         table = soup.find("div", "widget-items")
         times_row = table.find("div", "widget-row-datetime-time")

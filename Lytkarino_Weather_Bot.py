@@ -59,20 +59,22 @@ async def ensure_freshness(offset:int, telegram:Update) -> dict[str, str | Day]:
 
 def periodic_task():
     print("Auto-updates started")
-    forecast = Forecast()
+
     td, tm = Day(TODAY), Day(TOMORROW)
     while True:
-        changed = False
-        if MetadataController.update_is_overdue(td):
-            ForecastData(forecast, td)
-            changed = True
+        update_td, update_tm = MetadataController.update_is_overdue(td), MetadataController.update_is_overdue(tm)
+        if update_td or update_tm:
+            delete_old_files()
+            forecast = Forecast()
 
-        if MetadataController.update_is_overdue(tm):
-            ForecastData(forecast, tm)
-            changed = True
-        delete_old_files()
-        print(datetime.datetime.now(), "forecast automatically updated" if changed else "update unnecessary")
-        time.sleep(4.5*3600)
+            if update_td:
+                ForecastData(forecast, td)
+            if update_tm:
+                ForecastData(forecast, tm)
+
+            forecast.finish()
+            print("forecast automatically updated")
+        time.sleep(3600)
 
 
 def fetch_forecast_thread(day_number) -> ForecastData:
