@@ -75,9 +75,9 @@ class Forecast:
 
     def update_forecast(self, combined: pd.DataFrame, day:Day) -> pd.DataFrame:
         print("updating old values...")
-        gis = self.__gismeteo.parse_weather(day.date)
+        gis = self.__gismeteo._parse_weather(day.date)
         o_meteo, prob = get_open_meteo(day.offset + 1)
-        fore = self.__foreca.parse_weather(day.date)
+        fore = self.__foreca._parse_weather(day.date)
 
         combined = combined.drop(labels=list(combined.filter(regex="gismeteo_", axis=1).columns), axis=1)
         fs = ["temperature", "precipitation", "wind-speed"]

@@ -5,6 +5,7 @@ import random
 import pandas as pd
 from selenium import webdriver
 from selenium.webdriver.chrome.webdriver import WebDriver
+from selenium.webdriver.remote.command import Command
 from selenium_stealth import stealth
 import pickle
 from pathlib import Path
@@ -24,10 +25,11 @@ class BaseParser:
         self.__options.add_argument("--incognito")
         self.__options.add_argument("--disable-plugins-discovery")
 
-        self.__user_agents = ["Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36",
-                "Mozilla/5.0 (Macintosh; Intel Mac OS X 10.15; rv:89.0) Gecko/20100101 Firefox/89.0",
-                "Mozilla/5.0 (Windows NT 10.0; Win64; x64; Trident/7.0; rv:11.0) like Gecko",
-                "Opera/9.80 (Windows NT 10.0; Win64; x64) Presto/2.12.388 Version/12.18",]
+        self.__user_agents = [
+            "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36",
+            "Mozilla/5.0 (Macintosh; Intel Mac OS X 10.15; rv:89.0) Gecko/20100101 Firefox/89.0",
+            "Mozilla/5.0 (Windows NT 10.0; Win64; x64; Trident/7.0; rv:11.0) like Gecko",
+            "Opera/9.80 (Windows NT 10.0; Win64; x64) Presto/2.12.388 Version/12.18", ]
         self.__renderers = ["Intel Iris OpenGL Engine",
                             "Intel(R) UHD Graphics 620",
                             "NVIDIA GeForce GTX 1050 Ti",
@@ -39,10 +41,9 @@ class BaseParser:
 
         self.forecast_path = Path(f"forecast/{name}").resolve()
         self.forecast_path.mkdir(parents=True, exist_ok=True)
-        if use_selenium: self.init_driver(name)
 
-    def init_driver(self, *args):
-        print(datetime.now(), "Started driver", *args)
+    def init_driver(self):
+        print(datetime.now(), "Started driver", self.name)
         self.__options.add_argument(f"user-agent={random.choice(self.__user_agents)}")
         self.driver: WebDriver = webdriver.Chrome(self.__options)
         stealth(self.driver,
@@ -61,21 +62,27 @@ class BaseParser:
         except:
             pass
 
+    @property
+    def driver_down(self):
+        try:
+            return self.driver.session_id is None
+        except AttributeError:
+            return True
+
     def close(self):
         try:
             pickle.dump(self.driver.get_cookies(), open("cookies.pkl", "wb"))
         except:
             pass
         self.driver.quit()
-        n = self.name[0] if len(self.name)>0 else "driver"
+        n = "driver" if self.name is None else self.name
         print(datetime.now(), f"{n} is closed")
 
-    def parse_weather(self, date:datetime) -> str:
+    def _parse_weather(self, date: datetime) -> str:
         raise NotImplementedError("Subclasses should implement this method")
 
-    def get_weather(self, date:datetime) -> pd.DataFrame:
+    def get_weather(self, date: datetime) -> pd.DataFrame:
         raise NotImplementedError("Subclasses should implement this method")
 
-    def get_last_forecast_update(self, date:datetime) -> datetime:
+    def get_last_forecast_update(self, date: datetime) -> datetime:
         raise NotImplementedError("Subclasses should implement this method")
-

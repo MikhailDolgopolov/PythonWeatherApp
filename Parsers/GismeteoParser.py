@@ -3,6 +3,7 @@ import random
 import threading
 import time
 
+import numpy as np
 import pandas as pd
 from bs4 import BeautifulSoup
 from selenium.webdriver.common.by import By
@@ -43,8 +44,9 @@ class GismeteoParser(BaseParser):
             self.metadata.update_with_now(date)
             return BeautifulSoup(self.driver.page_source, "lxml")
 
-    def parse_weather(self, date:datetime) -> str | None:
+    def _parse_weather(self, date:datetime) -> str | None:
         print("Loading Gismeteo...")
+        if self.driver_down: self.init_driver()
         soup = self.parse_page(date)
         if soup is None:
             print("Couldn't parse Gismeteo")
@@ -67,19 +69,20 @@ class GismeteoParser(BaseParser):
         df = pd.DataFrame.from_records(data, columns=["time", "temperature", "precipitation", "wind-speed"]).astype(
             float)
         path = f"{self.forecast_path}/{date.strftime('%Y%m%d')}.csv"
-        df.to_csv(path_or_buf=path)
+        df.to_csv(path_or_buf=path, index=False)
         return path
 
     def get_weather(self, date:datetime) -> pd.DataFrame:
+        path = f"{self.forecast_path}/{date.strftime('%Y%m%d')}.csv"
         if self.metadata.update_is_overdue(date):
-            path = self.parse_weather(date)
+            path = self._parse_weather(date)
             if path is None:
                 return pd.DataFrame({"time":[], "temperature":[], "precipitation":[], "wind-speed":[]}).astype(float)
-            return pd.read_csv(path, dtype=float)
-        path = f"{self.forecast_path}/{date.strftime('%Y%m%d')}.csv"
+
         if self.metadata.update_is_due(date):
-            threading.Thread(target=self.parse_weather, args=date).start()
-        return pd.read_csv(path, dtype=float)
+            threading.Thread(target=self._parse_weather, args=date).start()
+        loaded = pd.read_csv(path, dtype=float)
+        return loaded.set_index('time').reindex(np.arange(0,24)).reset_index(drop=False).interpolate()
 
     def get_last_forecast_update(self, date:datetime) -> datetime:
         return self.metadata.get_last_update(date)

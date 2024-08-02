@@ -9,9 +9,8 @@ from Parsers.GismeteoParser import GismeteoParser
 from Parsers.OpenMeteoParser import OpenmeteoParser
 
 
-p = OpenmeteoParser().parse_weather(datetime.today() + timedelta(days=3))
+f = GismeteoParser().get_weather(datetime.today() + timedelta(days=2))
+print(f)
 
 
-def get_last_forecast_update(self, date: datetime) -> datetime:
-    raise NotImplementedError("Subclasses should implement this method")
 

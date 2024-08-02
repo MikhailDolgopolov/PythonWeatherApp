@@ -25,7 +25,7 @@ def read_json(json_path: Union[Path, str])->dict:
         with json_path.open('r', encoding='utf-8') as file:
             return json.load(file)
     except:
-        print(f"No file {json_path.name} in {os.getcwd()}")
+        print(f"No file {json_path} in {os.getcwd()}")
         return {}
 
 
