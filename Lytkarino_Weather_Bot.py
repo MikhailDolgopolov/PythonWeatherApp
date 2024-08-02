@@ -1,4 +1,4 @@
-import datetime
+from datetime import datetime, timedelta
 import logging
 import re
 import threading
@@ -9,8 +9,7 @@ from telegram.ext import CommandHandler, CallbackContext, Application, Conversat
 
 from Day import Day
 from Forecast import Forecast
-from ForecastData import ForecastData
-from ForecastRendering import get_and_render, render_forecast_data
+from ForecastRendering import render_forecast_data
 from MetadataController import MetadataController
 from helpers import read_json, delete_old_files
 
@@ -26,8 +25,9 @@ logger = logging.getLogger(__name__)
 
 TODAY, TOMORROW = range(2)
 
+options = {"temps": None, "rains": None}
 
-# noinspection PyUnusedLocal
+
 async def start(update: Update, context: CallbackContext) -> None:
     await update.message.reply_text('Привет!')
     time.sleep(1)
@@ -43,104 +43,27 @@ async def start(update: Update, context: CallbackContext) -> None:
     """)
 
 
-async def ensure_freshness(offset:int, telegram:Update) -> dict[str, str | Day]:
-    if MetadataController.update_is_overdue(Day(offset)):
-        await telegram.message.reply_text("Подождите, нужно получить актуальные данные...")
-        new_data = fetch_forecast_thread(offset)
-        await telegram.message.reply_text("Рисую график...")
-        data_to_send = render_forecast_data(new_data)
-        return data_to_send
-
-    data_to_send = get_and_render(offset)
-    if MetadataController.update_is_due(Day(offset)):
-        threading.Thread(target=fetch_forecast_thread, args=(offset,)).start()
-    return data_to_send
-
-
-def periodic_task():
-    print("Auto-updates started")
-
-    td, tm = Day(TODAY), Day(TOMORROW)
-    while True:
-        update_td, update_tm = MetadataController.update_is_overdue(td), MetadataController.update_is_overdue(tm)
-        if update_td or update_tm:
-            delete_old_files()
-            forecast = Forecast()
-
-            if update_td:
-                ForecastData(forecast, td)
-            if update_tm:
-                ForecastData(forecast, tm)
-
-            forecast.finish()
-            print("forecast automatically updated")
-        time.sleep(3600)
-
-
-def fetch_forecast_thread(day_number) -> ForecastData:
-    print(datetime.datetime.now(), "Запрашиваю новые данные")
-    forecast = Forecast()
-    day = Day(day_number)
-    return ForecastData(forecast, day)
-
-
-async def tod(update: Update, context: CallbackContext):
+async def send(update: Update, context: CallbackContext, date: datetime):
     chat_id = update.message.chat_id
+    forecast = Forecast(temp_sources=options["temps"], rainfall_sources=options["rains"])
+    pic = render_forecast_data(forecast, date)
 
-    pic = await ensure_freshness(TODAY, update)
-
-    await context.bot.send_photo(chat_id=chat_id, photo=pic["path"], caption=MetadataController.get_last_update(pic["day"]).strftime(
+    await context.bot.send_photo(chat_id=chat_id, photo=pic["path"], caption=forecast.last_updated(date).strftime(
         "Данные в последний раз обновлены %d.%m.%Y, в %H:%M"))
 
 
-async def send_today(update: Update, context: CallbackContext) -> int:
-    await tod(update, context)
-    return ConversationHandler.END
-
-
-async def tom(update: Update, context: CallbackContext):
-    chat_id = update.message.chat_id
-    pic = await ensure_freshness(TOMORROW, update)
-    await context.bot.send_photo(chat_id=chat_id, photo=pic["path"],
-                                 caption=MetadataController.get_last_update(pic["day"]).strftime(
-                                     "Данные в последний раз обновлены %d.%m.%Y, в %H:%M"))
-
-
-async def send_tomorrow(update: Update, context: CallbackContext) -> int:
-    await tom(update, context)
-    return ConversationHandler.END
-
-
-async def tt1(update: Update, context: CallbackContext) -> int:
-    await tod(update, context)
-    time.sleep(0.5)
-    await tom(update, context)
-    return ConversationHandler.END
-
-
-async def tt2(update: Update, context: CallbackContext) -> int:
-    await tom(update, context)
-    time.sleep(0.5)
-    await tod(update, context)
-    return ConversationHandler.END
 
 
 def main() -> None:
     application = Application.builder().token(TOKEN).build()
 
-    threading.Thread(target=periodic_task, daemon=True).start()
-
     application.add_handler(CommandHandler("start", start))
-    application.add_handler(CommandHandler("today", send_today))
-    application.add_handler(CommandHandler("tomorrow", send_tomorrow))
-
     application.add_handler(
-        MessageHandler(filters.Regex(re.compile(r'^(?!.*завтра)сегодня(?!.*завтра).*$', re.IGNORECASE)), send_today))
+        MessageHandler(filters.Regex(re.compile(r'^(?!.*завтра)сегодня(?!.*завтра).*$', re.IGNORECASE)),
+                       lambda update, context: send(update, context, datetime.today())))
     application.add_handler(
         MessageHandler(filters.Regex(re.compile(r'^(?!.*сегодня)завтра(?!.*сегодня).*$', re.IGNORECASE)),
-                       send_tomorrow))
-    application.add_handler(MessageHandler(filters.Regex(re.compile(r'сегодня.*завтра', re.IGNORECASE)), tt1))
-    application.add_handler(MessageHandler(filters.Regex(re.compile(r'завтра.*сегодня', re.IGNORECASE)), tt2))
+                       lambda update, context: send(update, context, datetime.today()+timedelta(days=1))))
 
     # Run the bot until the user presses Ctrl-C
     application.run_polling(allowed_updates=Update.ALL_TYPES)

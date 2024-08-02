@@ -78,7 +78,7 @@ class BaseParser:
         n = "driver" if self.name is None else self.name
         print(datetime.now(), f"{n} is closed")
 
-    def _parse_weather(self, date: datetime) -> str:
+    def _parse_weather(self, date: datetime, path:str) -> pd.DataFrame:
         raise NotImplementedError("Subclasses should implement this method")
 
     def get_weather(self, date: datetime) -> pd.DataFrame:

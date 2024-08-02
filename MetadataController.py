@@ -3,13 +3,14 @@ from pathlib import Path
 from typing import Union
 
 from Day import Day
-from helpers import read_json, write_json
+from helpers import read_json, write_json, delete_old_files
 
 
 class MetadataController:
 
     def __init__(self, path: Path):
         self.metadata_file = path / "metadata.json"
+        delete_old_files([path])
 
     def update_with_now(self, date: datetime) -> None:
         metadata = read_json(self.metadata_file)

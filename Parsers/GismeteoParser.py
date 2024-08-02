@@ -21,7 +21,10 @@ class GismeteoParser(BaseParser):
 
     def parse_page(self, date:datetime) -> BeautifulSoup | None:
         today = datetime.datetime.today()
-        self.driver.get(self.__url)
+        try:
+            self.driver.get(self.__url)
+        except:
+            return None
         random_delay(4, 8)
         diff = (date.date() - today.date()).days
         if diff == 0:
@@ -44,7 +47,7 @@ class GismeteoParser(BaseParser):
             self.metadata.update_with_now(date)
             return BeautifulSoup(self.driver.page_source, "lxml")
 
-    def _parse_weather(self, date:datetime) -> str | None:
+    def _parse_weather(self, date:datetime, path:str) -> pd.DataFrame | None:
         print("Loading Gismeteo...")
         if self.driver_down: self.init_driver()
         soup = self.parse_page(date)
@@ -68,20 +71,18 @@ class GismeteoParser(BaseParser):
         super().close()
         df = pd.DataFrame.from_records(data, columns=["time", "temperature", "precipitation", "wind-speed"]).astype(
             float)
-        path = f"{self.forecast_path}/{date.strftime('%Y%m%d')}.csv"
-        df.to_csv(path_or_buf=path, index=False)
-        return path
+        df.to_csv(path, index=False)
+        return df
 
     def get_weather(self, date:datetime) -> pd.DataFrame:
         path = f"{self.forecast_path}/{date.strftime('%Y%m%d')}.csv"
         if self.metadata.update_is_overdue(date):
-            path = self._parse_weather(date)
-            if path is None:
-                return pd.DataFrame({"time":[], "temperature":[], "precipitation":[], "wind-speed":[]}).astype(float)
-
+            loaded = self._parse_weather(date, path)
+        else:
+            loaded = pd.read_csv(path, dtype=float)
         if self.metadata.update_is_due(date):
-            threading.Thread(target=self._parse_weather, args=date).start()
-        loaded = pd.read_csv(path, dtype=float)
+            threading.Thread(target=self._parse_weather, args=[date, path]).start()
+
         return loaded.set_index('time').reindex(np.arange(0,24)).reset_index(drop=False).interpolate()
 
     def get_last_forecast_update(self, date:datetime) -> datetime:

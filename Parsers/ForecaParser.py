@@ -1,8 +1,8 @@
+import os.path
 import random
 import threading
 import time
 from datetime import datetime
-from typing import Union
 
 import pandas as pd
 from bs4 import BeautifulSoup
@@ -32,7 +32,7 @@ class ForecaParser(BaseParser):
             print(ex)
             return None
 
-    def _parse_weather(self, date) -> str | None:
+    def _parse_weather(self, date, path) -> pd.DataFrame | None:
         print("Loading Foreca...")
         if self.driver_down: self.init_driver()
         soup = self._parse_date(date)
@@ -47,23 +47,21 @@ class ForecaParser(BaseParser):
                  row.find("span", "wind_ms").text
                  ] for row in table.findAll("div", "hour")]
         df = pd.DataFrame.from_records(data,
-                                         columns=["time", "temperature", "precipitation", "wind-speed"]).astype(float)
+                                       columns=["time", "temperature", "precipitation", "wind-speed"]).astype(float)
         super().close()
-        path = f"{self.forecast_path}/{date.strftime('%Y%m%d')}.csv"
-        df.to_csv(path_or_buf=path)
-        return path
+        df.to_csv(path, index=False)
+        return df
 
     def get_weather(self, date: datetime) -> pd.DataFrame:
-        if self.metadata.update_is_overdue(date):
-            path = self._parse_weather(date)
-            if path is None:
-                return pd.DataFrame({"time": [], "temperature": [], "precipitation": [], "wind-speed": []}).astype(
-                    float)
-            return pd.read_csv(path, dtype=float)
         path = f"{self.forecast_path}/{date.strftime('%Y%m%d')}.csv"
+        if not os.path.isfile(path) and date.date == datetime.today().date():
+            return pd.DataFrame({"time": [], "temperature": [], "precipitation": [], "wind-speed": []}).astype(float)
+        if self.metadata.update_is_overdue(date):
+            return self._parse_weather(date, path)
+        data = pd.read_csv(path, dtype=float)
         if self.metadata.update_is_due(date):
-            threading.Thread(target=self._parse_weather, args=[date]).start()
-        return pd.read_csv(path, dtype=float)
+            threading.Thread(target=self._parse_weather, args=[date, path]).start()
+        return data
 
     def get_last_forecast_update(self, date: datetime) -> datetime:
         return self.metadata.get_last_update(date)

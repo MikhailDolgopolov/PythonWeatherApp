@@ -18,63 +18,27 @@ pd.set_option('display.max_columns', 10)  # Increase the number of columns to di
 pd.set_option('display.max_colwidth', 50)  # Set the max column width to 50 characters
 
 
-def interpolate_color(color1, color2, factor):
-    """
-    Interpolates between two colors with a given factor.
-    color1, color2: Colors to interpolate between (as RGB tuples).
-    factor: Interpolation factor (0 = color1, 1 = color2).
-    """
-    result = (np.array(color1) * (1 - factor) + np.array(color2) * factor).astype(int)
-
-    return result
-
-
-def hex_to_rgb(hex_color):
-    """
-    Converts a hex color to an RGB tuple.
-    """
-    hex_color = hex_color.lstrip('#')
-    return tuple(int(hex_color[i:i + 2], 16) for i in (0, 2, 4))
-
-
-def rgb_to_hex(rgb_color):
-    """
-    Converts an RGB tuple to a hex color.
-    """
-    return '#%02x%02x%02x' % tuple(rgb_color)
-
-
-def get_and_render(offset, save_image=True, show=False, generate_new=False):
-
-    day = Day(offset)
-    path = f"Images/{day.forecast_name}.png"
-    if os.path.isfile(path) and not generate_new:
-        return {"path": path, "day": day}
-    else:
-        forecast = Forecast()
-        data = ForecastData(forecast, day)
-        return render_forecast_data(data, save=save_image, show=show)
-
-
-def render_forecast_data(data: ForecastData, save=True, show=False) -> dict[str, str | Day]:
-    sources = data.source_names
-
-    day = data.day
+def render_forecast_data(forecast: Forecast, date: datetime, save=True, show=False):
+    day = Day(date)
+    data = forecast.fetch_forecast(date)
     print(f"Rendering for {day.full_date}")
-
+    colormap = {"Foreca": "forestgreen", "Gismeteo": "blue", "Openmeteo": "orangered"}
     fig, ax1 = plt.subplots(figsize=(6, 5))
-    x_axis = data.time
-    main_plot = "temperature"
-    to_remove = []
-    for s in sources:
-        plot_line = data.get_source(s)[main_plot]
+    x_axis = data["time"]
+
+    temps = data.filter(regex="_temperature", axis=1)
+    temp_labels = [n.split("_")[0] for n in temps.columns]
+    rains = data.filter(regex="_precipitation", axis=1)
+    rain_labels = [n.split("_")[0] for n in rains.columns]
+    for i in range(len(temps.columns)):
+        col = temps.columns[i]
+        plot_line = data[col]
         if plot_line.isna().all():
-            to_remove.append(s)
             continue
-        plt.plot(x_axis, plot_line, color=data.colormap[s], label=s, zorder=4)
-    for empty in to_remove:
-        sources.remove(empty)
-    plt.plot(x_axis, data.mean_values[main_plot], color=[0.6]*3, alpha=0.5, linewidth=25, zorder=2)
+
+        plt.plot(x_axis, plot_line, color=colormap[temp_labels[i]], label=temp_labels[i], zorder=4)
+
+    plt.plot(x_axis, data["mean_temp"], color=[0.6] * 3, alpha=0.5, linewidth=25, zorder=2)
 
     sunspan = day.suntime
     plt.axvspan(sunspan[0], sunspan[1], alpha=0.3, color="#ebbf2f", zorder=0)
@@ -82,24 +46,32 @@ def render_forecast_data(data: ForecastData, save=True, show=False) -> dict[str,
     ax1.set_ylabel("Температура, °C")
     plt.legend()
 
-    bottom = np.min(data.mean_values[main_plot]) - 5
-    if not data.precipitation_exists:
+    bottom = np.min(data["mean_temp"]) - 5
+
+    mean_prec = rains.mean(axis=1)
+    prec_count = np.count_nonzero(mean_prec)
+    prec_per_hour = 0 if prec_count == 0 else sum(mean_prec) / prec_count
+    precipitation_exists = prec_per_hour > 0.1
+
+    if not precipitation_exists:
         plt.ylim(bottom=bottom)
-    if data.precipitation_exists:
+
+    if precipitation_exists:
         bottom -= 4
 
-        bar_width = 1/len(sources)
-        shift = (len(sources)-1)*0.5
-        for i in range(len(sources)):
-            amount = np.array(data.get_source(sources[i])["precipitation"])
-            plt.bar(x_axis+bar_width*(i-shift), amount, bar_width, bottom=bottom, color=data.colormap[sources[i]], zorder=4, linewidth=0)
+        bar_width = 1 / len(rain_labels)
+        shift = (len(rain_labels) - 1) * 0.5
+        for i in range(len(rain_labels)):
+            amount = data[rains.columns[i]]
+            plt.bar(x_axis + bar_width * (i - shift), amount, bar_width, bottom=bottom,
+                    color = colormap[rain_labels[i]], zorder=4, linewidth=0)
 
         plt.plot(x_axis, [bottom] * 24, color="black", zorder=5)
 
         ax2 = ax1.secondary_yaxis("right", functions=(lambda x: (x - bottom), lambda x: x - bottom))
         ax2.set_ylabel("Осадки, мм")
 
-    d = data.mean_values[main_plot]
+    d = data["mean_temp"]
     lower_x = np.argmin(d)
     higher_x = np.argmax(d)
     lower_y = round(d[lower_x])
@@ -115,7 +87,7 @@ def render_forecast_data(data: ForecastData, save=True, show=False) -> dict[str,
     plt.xticks(x_axis)
     plt.title(f"Прогноз на {day.accs_day_name}, {day.D_month}", y=1.05)
 
-    path = f"Images/{day.forecast_name}.png"
+    path = f"Images/{day.short_date}.png"
 
     if save:
         plt.savefig(path, bbox_inches="tight", dpi=600)
@@ -123,4 +95,3 @@ def render_forecast_data(data: ForecastData, save=True, show=False) -> dict[str,
         plt.show()
     plt.close()
     return {"path": path, "day": day}
-

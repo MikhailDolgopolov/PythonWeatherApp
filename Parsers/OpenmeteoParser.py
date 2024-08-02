@@ -22,7 +22,7 @@ openmeteo = openmeteo_requests.Client(session=retry_session)
 
 class OpenmeteoParser(BaseParser):
     def __init__(self):
-        super().__init__(name="OpenMeteo", use_selenium=False)
+        super().__init__(name="Openmeteo", use_selenium=False)
         self.__url = "https://api.open-meteo.com/v1/forecast"
         print("Loading OpenMeteo...")
         p = my_point()
@@ -63,6 +63,6 @@ class OpenmeteoParser(BaseParser):
 
         return data
 
-    def get_last_update(self, date) -> datetime:
+    def get_last_forecast_update(self, date) -> datetime:
         return self.__update_time
 
