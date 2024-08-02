@@ -1,5 +1,6 @@
 import datetime
 import random
+import threading
 import time
 
 import pandas as pd
@@ -42,13 +43,13 @@ class GismeteoParser(BaseParser):
             self.metadata.update_with_now(date)
             return BeautifulSoup(self.driver.page_source, "lxml")
 
-    def get_weather(self, date:datetime) -> pd.DataFrame:
+    def parse_weather(self, date:datetime) -> str | None:
         print("Loading Gismeteo...")
         soup = self.parse_page(date)
         if soup is None:
             print("Couldn't parse Gismeteo")
             super().close()
-            return pd.DataFrame({"time":[], "temperature":[], "precipitation":[], "wind-speed":[]}).astype(float)
+            return None
         table = soup.find("div", "widget-items")
         times_row = table.find("div", "widget-row-datetime-time")
         clocks = [s.text.split(":")[0] for s in times_row.findAll("span")]
@@ -63,8 +64,22 @@ class GismeteoParser(BaseParser):
         data = [[clocks[i], int(temps[i]), float(mm_percp[i].replace(",", ".")), wind[i]] for i in range(len(clocks))]
 
         super().close()
-        return pd.DataFrame.from_records(data, columns=["time", "temperature", "precipitation", "wind-speed"]).astype(
+        df = pd.DataFrame.from_records(data, columns=["time", "temperature", "precipitation", "wind-speed"]).astype(
             float)
+        path = f"{self.forecast_path}/{date.strftime('%Y%m%d')}.csv"
+        df.to_csv(path_or_buf=path)
+        return path
+
+    def get_weather(self, date:datetime) -> pd.DataFrame:
+        if self.metadata.update_is_overdue(date):
+            path = self.parse_weather(date)
+            if path is None:
+                return pd.DataFrame({"time":[], "temperature":[], "precipitation":[], "wind-speed":[]}).astype(float)
+            return pd.read_csv(path, dtype=float)
+        path = f"{self.forecast_path}/{date.strftime('%Y%m%d')}.csv"
+        if self.metadata.update_is_due(date):
+            threading.Thread(target=self.parse_weather, args=date).start()
+        return pd.read_csv(path, dtype=float)
 
     def get_last_forecast_update(self, date:datetime) -> datetime:
         return self.metadata.get_last_update(date)

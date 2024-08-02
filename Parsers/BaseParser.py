@@ -70,14 +70,11 @@ class BaseParser:
         n = self.name[0] if len(self.name)>0 else "driver"
         print(datetime.now(), f"{n} is closed")
 
-    def get_weather(self, date) -> pd.DataFrame:
+    def parse_weather(self, date:datetime) -> str:
         raise NotImplementedError("Subclasses should implement this method")
 
-    def get_weather_today(self) -> pd.DataFrame:
-        return self.get_weather(datetime.now())
-
-    def get_weather_tomorrow(self) -> pd.DataFrame:
-        return self.get_weather(datetime.now() + timedelta(days=1))
+    def get_weather(self, date:datetime) -> pd.DataFrame:
+        raise NotImplementedError("Subclasses should implement this method")
 
     def get_last_forecast_update(self, date:datetime) -> datetime:
         raise NotImplementedError("Subclasses should implement this method")

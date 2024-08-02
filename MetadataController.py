@@ -28,20 +28,20 @@ class MetadataController:
             return datetime.strptime(metadata[given], '%Y-%m-%dT%H:%M:%S')
         return None
 
-    def update_is_due(self, day: Day) -> bool:
-        last = self.get_last_update(day.date)
+    def update_is_due(self, date:datetime) -> bool:
+        last = self.get_last_update(date)
         if last is None:
             return True
         diff = datetime.now() - last
-        threshold = timedelta(hours=2) if day.offset == 0 else timedelta(hours=3)
+        threshold = timedelta(hours=3)
 
         return diff > threshold
 
-    def update_is_overdue(self, day: Day) -> bool:
-        last = self.get_last_update(day.date)
+    def update_is_overdue(self, date:datetime) -> bool:
+        last = self.get_last_update(date)
         if last is None:
             return True
         diff = datetime.now() - last
-        threshold = timedelta(hours=4)
+        threshold = timedelta(hours=5)
 
         return diff > threshold

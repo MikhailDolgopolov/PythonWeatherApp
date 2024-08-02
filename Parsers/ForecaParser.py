@@ -1,4 +1,5 @@
 import random
+import threading
 import time
 from datetime import datetime
 
@@ -30,7 +31,7 @@ class ForecaParser(BaseParser):
             print(ex)
             return None
 
-    def get_weather(self, date) -> pd.DataFrame:
+    def parse_weather(self, date) -> str:
         print("Loading Foreca...")
         soup = self.parse_date(date)
         if soup is None:
@@ -43,10 +44,24 @@ class ForecaParser(BaseParser):
                  row.find("span", "rain_mm").text.split()[0],
                  row.find("span", "wind_ms").text
                  ] for row in table.findAll("div", "hour")]
-        data = pd.DataFrame.from_records(data,
+        df = pd.DataFrame.from_records(data,
                                          columns=["time", "temperature", "precipitation", "wind-speed"]).astype(float)
         super().close()
-        return data
+        path = f"{self.forecast_path}/{date.strftime('%Y%m%d')}.csv"
+        df.to_csv(path_or_buf=path)
+        return path
 
-    def get_last_forecast_update(self, date:datetime) -> datetime:
+    def get_weather(self, date: datetime) -> pd.DataFrame:
+        if self.metadata.update_is_overdue(date):
+            path = self.parse_weather(date)
+            if path is None:
+                return pd.DataFrame({"time": [], "temperature": [], "precipitation": [], "wind-speed": []}).astype(
+                    float)
+            return pd.read_csv(path, dtype=float)
+        path = f"{self.forecast_path}/{date.strftime('%Y%m%d')}.csv"
+        if self.metadata.update_is_due(date):
+            threading.Thread(target=self.parse_weather, args=[date]).start()
+        return pd.read_csv(path, dtype=float)
+
+    def get_last_forecast_update(self, date: datetime) -> datetime:
         return self.metadata.get_last_update(date)
