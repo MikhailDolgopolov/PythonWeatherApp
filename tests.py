@@ -1,4 +1,4 @@
-from datetime import datetime
+from datetime import datetime, timedelta
 
 from Day import Day
 from Forecast import Forecast
@@ -6,11 +6,12 @@ from ForecastData import ForecastData
 from ForecastRendering import get_and_render
 from Parsers.ForecaParser import ForecaParser
 from Parsers.GismeteoParser import GismeteoParser
+from Parsers.OpenMeteoParser import OpenmeteoParser
 
-# get_and_render(0,  False, True, True)
-# get_and_render(1,  False, True, True)
 
-# ForecaParser().get_weather(datetime.today())
+p = OpenmeteoParser().get_weather(datetime.today()+timedelta(days=3))
 
-f = Forecast()
-ForecastData(f, Day(1))
+
+def get_last_forecast_update(self, date: datetime) -> datetime:
+    raise NotImplementedError("Subclasses should implement this method")
+

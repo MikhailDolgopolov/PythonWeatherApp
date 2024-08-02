@@ -1,16 +1,19 @@
 import random
 import time
+from datetime import datetime
 
 import pandas as pd
 from bs4 import BeautifulSoup
 
+from MetadataController import MetadataController
 from Parsers.BaseParser import BaseParser
 
 
 class ForecaParser(BaseParser):
-    def __init__(self, *args):
+    def __init__(self):
         self.__url_template = "https://www.foreca.ru/Russia/Lytkarino?details="
-        super().__init__(*args)
+        super().__init__(name="Foreca")
+        self.metadata = MetadataController(self.forecast_path)
 
     def parse_date(self, date) -> BeautifulSoup | None:
         detail = date.strftime("%Y%m%d")
@@ -19,6 +22,7 @@ class ForecaParser(BaseParser):
             self.driver.get(url)
             time.sleep(random.uniform(5, 10))
             source = self.driver.page_source
+            self.metadata.update_with_now(date)
             soup = BeautifulSoup(source, "lxml")
             super().close()
             return soup
@@ -43,3 +47,6 @@ class ForecaParser(BaseParser):
                                          columns=["time", "temperature", "precipitation", "wind-speed"]).astype(float)
         super().close()
         return data
+
+    def get_last_forecast_update(self, date:datetime) -> datetime:
+        return self.metadata.get_last_update(date)

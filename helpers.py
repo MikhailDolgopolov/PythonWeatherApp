@@ -5,6 +5,7 @@ import time
 import random
 from datetime import datetime, timedelta
 from glob import glob
+from pathlib import Path
 from typing import Union
 
 import numpy as np
@@ -17,17 +18,22 @@ def my_point():
     return 55.57, 35.91
 
 
-def read_json(file_path) -> dict:
+def read_json(json_path: Union[Path, str])->dict:
+    if isinstance(json_path, str):
+        json_path = Path(json_path)
     try:
-        with open(file_path, 'r') as file:
+        with json_path.open('r', encoding='utf-8') as file:
             return json.load(file)
-    except FileNotFoundError:
-        print("Current working directory:", os.getcwd(), "no file ", file_path)
+    except:
+        print(f"No file {json_path.name} in {os.getcwd()}")
+        return {}
 
 
-def write_json(data: dict, path: str):
-    with open(path, 'w') as json_file:
-        json.dump(data, json_file, indent=4)
+def write_json(data: dict, json_path: Union[Path, str])->None:
+    if isinstance(json_path, str):
+        json_path = Path(json_path)
+    with json_path.open('w', encoding='utf-8') as file:
+        json.dump(data, file, ensure_ascii=False, indent=4)
 
 
 def inflect(word, case: Union["accs", "gent"]) -> str:

@@ -7,12 +7,13 @@ from selenium import webdriver
 from selenium.webdriver.chrome.webdriver import WebDriver
 from selenium_stealth import stealth
 import pickle
+from pathlib import Path
 
 
 class BaseParser:
-    def __init__(self, *args):
+    def __init__(self, name, use_selenium=True):
         self.__options = webdriver.ChromeOptions()
-        # self.__options.add_argument("--headless")
+        self.__options.add_argument("--headless")
         self.__options.add_argument("start-maximized")
 
         self.__options.add_experimental_option("excludeSwitches", ["enable-automation"])
@@ -34,8 +35,11 @@ class BaseParser:
                             "Intel(R) HD Graphics 4000",
                             "NVIDIA GeForce RTX 2080",
                             "AMD Radeon Vega 8 Graphics", ]
+        self.name = name
 
-        self.init_driver(*args)
+        self.forecast_path = Path(f"forecast/{name}").resolve()
+        self.forecast_path.mkdir(parents=True, exist_ok=True)
+        if use_selenium: self.init_driver(name)
 
     def init_driver(self, *args):
         print(datetime.now(), "Started driver", *args)
@@ -55,7 +59,7 @@ class BaseParser:
         except FileNotFoundError:
             pass
         except:
-            print("Couldn't add cookies")
+            pass
 
     def close(self):
         try:
@@ -63,18 +67,18 @@ class BaseParser:
         except:
             pass
         self.driver.quit()
-        print(datetime.now(), "closed driver")
+        n = self.name[0] if len(self.name)>0 else "driver"
+        print(datetime.now(), f"{n} is closed")
 
     def get_weather(self, date) -> pd.DataFrame:
         raise NotImplementedError("Subclasses should implement this method")
 
     def get_weather_today(self) -> pd.DataFrame:
-        weather = self.get_weather(datetime.now())
-        self.close()
-        return weather
+        return self.get_weather(datetime.now())
 
     def get_weather_tomorrow(self) -> pd.DataFrame:
-        weather = self.get_weather(datetime.now() + timedelta(days=1))
-        self.close()
-        return weather
+        return self.get_weather(datetime.now() + timedelta(days=1))
+
+    def get_last_forecast_update(self, date:datetime) -> datetime:
+        raise NotImplementedError("Subclasses should implement this method")
 
