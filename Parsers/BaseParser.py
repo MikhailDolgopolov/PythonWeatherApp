@@ -58,8 +58,10 @@ class BaseParser:
             print("Couldn't add cookies")
 
     def close(self):
-        pickle.dump(self.driver.get_cookies(), open("cookies.pkl", "wb"))
-        self.driver.close()
+        try:
+            pickle.dump(self.driver.get_cookies(), open("cookies.pkl", "wb"))
+        except:
+            pass
         self.driver.quit()
         print(datetime.now(), "closed driver")
 
@@ -67,9 +69,12 @@ class BaseParser:
         raise NotImplementedError("Subclasses should implement this method")
 
     def get_weather_today(self) -> pd.DataFrame:
-        return self.get_weather(datetime.now())
+        weather = self.get_weather(datetime.now())
+        self.close()
+        return weather
 
     def get_weather_tomorrow(self) -> pd.DataFrame:
-        return self.get_weather(datetime.now() + timedelta(days=1))
-
+        weather = self.get_weather(datetime.now() + timedelta(days=1))
+        self.close()
+        return weather
 
