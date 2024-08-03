@@ -9,7 +9,6 @@ import seaborn as sns
 
 from Day import Day
 from Forecast import Forecast
-from ForecastData import ForecastData
 from helpers import check_and_add_numbers
 
 sns.set_style("whitegrid")
@@ -18,7 +17,7 @@ pd.set_option('display.max_columns', 10)  # Increase the number of columns to di
 pd.set_option('display.max_colwidth', 50)  # Set the max column width to 50 characters
 
 
-def render_forecast_data(forecast: Forecast, date: datetime, save=True, show=False):
+def render_forecast_data(forecast: Forecast, date: datetime, save=True, show=False, uid:int = 0):
     day = Day(date)
     data = forecast.fetch_forecast(date)
     print(f"Rendering for {day.full_date}")
@@ -87,7 +86,7 @@ def render_forecast_data(forecast: Forecast, date: datetime, save=True, show=Fal
     plt.xticks(x_axis)
     plt.title(f"Прогноз на {day.accs_day_name}, {day.D_month}", y=1.05)
 
-    path = f"Images/{day.short_date}.png"
+    path = f"Images/{day.short_date}_{uid}.png"
 
     if save:
         plt.savefig(path, bbox_inches="tight", dpi=600)

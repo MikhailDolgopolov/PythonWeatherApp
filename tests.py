@@ -2,7 +2,6 @@ from datetime import datetime, timedelta
 
 from Day import Day
 from Forecast import Forecast
-from ForecastData import ForecastData
 from ForecastRendering import render_forecast_data
 from Parsers.ForecaParser import ForecaParser
 from Parsers.GismeteoParser import GismeteoParser
