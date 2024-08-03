@@ -88,12 +88,11 @@ async def send(thing: Union[Update, CallbackQuery], context: CallbackContext, da
 
 def current_settings(new: bool, context: CallbackContext) -> str:
     t, r = context.chat_data.get("temp-sources"), context.chat_data.get("rain-sources")
-    current = f"""{'Теперь' if new else 'В данный момент'} на графиках:\n
-        температура из {', '.join(t)}\n"""
+    current = f"{'Теперь' if new else 'В данный момент'} на графиках:\n\n-  температура из {', '.join(t)}\n"
     if len(r) > 0:
-        current += f"осадки из {', '.join(r)}"
+        current += f"-  осадки из {', '.join(r)}"
     else:
-        current += "осадки не отображаются"
+        current += "-  осадки не отображаются"
     return current
 
 
@@ -147,10 +146,9 @@ async def handle_temp_sources(update: Update, context: CallbackContext) -> int:
             context.chat_data['temp-sources'] = [s for s in d.keys() if d[s]]
             ls = [s for s in d.keys() if d[s]]
             selected = ", ".join(ls)
-            await query.edit_message_text(
-                f"Сделано. В графиках тепературы {'будет' if len(ls) == 1 else 'будут'} использоваться {selected}.",
-                reply_markup=None)
-            context.chat_data["temp-select"] = None
+            await query.edit_message_text(f"Сделано.", reply_markup=None)
+            del context.chat_data["temp-select"]
+            await query.message.reply_text(current_settings(True, context))
             return ConversationHandler.END
         else:
             await query.edit_message_text(source_choose_text('temp') + "Требуется хотя бы один",
@@ -162,6 +160,7 @@ async def handle_temp_sources(update: Update, context: CallbackContext) -> int:
         selected = "\n".join([s for s in d.keys() if d[s]])
         await query.edit_message_text(source_choose_text('temp') + selected,
                                       reply_markup=InlineKeyboardMarkup(source_keyboard()))
+
         return T_SETTINGS
 
 
@@ -171,21 +170,19 @@ async def handle_rain_sources(update: Update, context: CallbackContext) -> int:
     sub_option = query.data
     d = context.chat_data["rain-select"]
     if sub_option == "stop":
-
         some = np.any([d[s] for s in d.keys()])
+        del context.chat_data["rain-select"]
         if some:
             context.chat_data['rain-sources'] = [s for s in d.keys() if d[s]]
             ls = [s for s in d.keys() if d[s]]
-            selected = ", ".join(ls)
 
             await query.edit_message_text(f"Сделано.", reply_markup=None)
             await query.message.reply_text(current_settings(True, context))
-            context.chat_data["rain-select"] = None
+
             return ConversationHandler.END
         else:
             context.chat_data["rain-sources"] = []
-            await query.edit_message_text("Сделано.",
-                                          reply_markup=None)
+            await query.edit_message_text("Сделано.", reply_markup=None)
             await query.message.reply_text(current_settings(True, context))
             return R_SETTINGS
     else:
@@ -230,6 +227,8 @@ async def handle_again(update: Update, context: CallbackContext):
         await query.message.delete()
         return await days(query, context)
 
+async def debug(update: Update, context: CallbackContext):
+    await update.message.reply_text(pformat(context.chat_data))
 
 def main() -> None:
     persistence = PicklePersistence(filepath='bot_persitence', update_interval=5)
@@ -270,6 +269,7 @@ def main() -> None:
         fallbacks=entry_for_days
     )
     application.add_handler(days_handler)
+    application.add_handler(CommandHandler("debug", debug))
     # Run the bot until the user presses Ctrl-C
     application.run_polling(allowed_updates=Update.ALL_TYPES)
 
