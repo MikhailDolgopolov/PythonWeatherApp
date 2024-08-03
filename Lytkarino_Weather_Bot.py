@@ -33,7 +33,7 @@ TOKEN = read_json("secrets.json")["telegram_token"]
 logger = logging.getLogger(__name__)
 
 CHOOSING_SETTING, R_SETTINGS, T_SETTINGS, = 0, 1, 2
-CHOOSING_DAY = 3
+CHOOSING_DAY, REPEAT = 3, 4
 STOP_WORD = "Утвердить"
 
 sites = Forecast.all_sources()
@@ -78,12 +78,11 @@ async def send(thing: Union[Update, CallbackQuery], context: CallbackContext, da
     await initial_message.delete()
     os.remove(pic["path"])
 
-    keyboard = [[InlineKeyboardButton("Выбрать снова", callback_data="again")]]
+    keyboard = [[InlineKeyboardButton("Выбрать день", callback_data="again")]]
     time.sleep(1)
-    await thing.message.reply_text("Нужно?", reply_markup=InlineKeyboardMarkup(keyboard))
+    await thing.message.reply_text("прогноз на 9 дней вперед", reply_markup=InlineKeyboardMarkup(keyboard))
 
     return CHOOSING_DAY
-
 
 
 def current_settings(new: bool, context: CallbackContext) -> str:
@@ -110,8 +109,6 @@ async def temp_option(update: Update, context: CallbackContext):
     await query.answer()
 
     reply_markup = InlineKeyboardMarkup(source_keyboard())
-    d = {k: False for k in sites}
-    context.chat_data["temp-select"] = d
     await query.edit_message_text(text=source_choose_text('temp'),
                                   reply_markup=reply_markup)
 
@@ -122,8 +119,6 @@ async def rain_option(update: Update, context: CallbackContext) -> int:
     query = update.callback_query
     await query.answer()
     reply_markup = InlineKeyboardMarkup(source_keyboard())
-    d = {k: False for k in sites}
-    context.chat_data["rain-select"] = d
     await query.edit_message_text(text=source_choose_text('rain'), reply_markup=reply_markup)
     return R_SETTINGS
 
@@ -139,25 +134,27 @@ async def handle_temp_sources(update: Update, context: CallbackContext) -> int:
     query = update.callback_query
     await query.answer()
     sub_option = query.data
-    d = context.chat_data["temp-select"]
+    d = context.chat_data.get("temp-select", {s:False for s in sites})
     if sub_option == "stop":
         some = np.any([d[s] for s in d.keys()])
         if some:
             context.chat_data['temp-sources'] = [s for s in d.keys() if d[s]]
-            ls = [s for s in d.keys() if d[s]]
-            selected = ", ".join(ls)
-            await query.edit_message_text(f"Сделано.", reply_markup=None)
+            await query.edit_message_text(f"Источники температуры изменены", reply_markup=None)
             del context.chat_data["temp-select"]
             await query.message.reply_text(current_settings(True, context))
-            return ConversationHandler.END
+            key =[[InlineKeyboardButton("Изменить осадки", callback_data="rain")]]
+            time.sleep(1)
+            await query.message.reply_text("Также можно", reply_markup=InlineKeyboardMarkup(key))
+            return T_SETTINGS
         else:
             await query.edit_message_text(source_choose_text('temp') + "Требуется хотя бы один",
                                           reply_markup=InlineKeyboardMarkup(source_keyboard()))
+
             return T_SETTINGS
     else:
         d[sub_option] = not d[sub_option]
         context.chat_data["temp-select"] = d
-        selected = "\n".join([s for s in d.keys() if d[s]])
+        selected = ''.join(["\n- "+s for s in d.keys() if d[s]])
         await query.edit_message_text(source_choose_text('temp') + selected,
                                       reply_markup=InlineKeyboardMarkup(source_keyboard()))
 
@@ -168,27 +165,22 @@ async def handle_rain_sources(update: Update, context: CallbackContext) -> int:
     query = update.callback_query
     await query.answer()
     sub_option = query.data
-    d = context.chat_data["rain-select"]
+    d = context.chat_data.get("rain-select", {s:False for s in sites})
     if sub_option == "stop":
-        some = np.any([d[s] for s in d.keys()])
         del context.chat_data["rain-select"]
-        if some:
-            context.chat_data['rain-sources'] = [s for s in d.keys() if d[s]]
-            ls = [s for s in d.keys() if d[s]]
 
-            await query.edit_message_text(f"Сделано.", reply_markup=None)
-            await query.message.reply_text(current_settings(True, context))
+        context.chat_data['rain-sources'] = [s for s in d.keys() if d[s]]
 
-            return ConversationHandler.END
-        else:
-            context.chat_data["rain-sources"] = []
-            await query.edit_message_text("Сделано.", reply_markup=None)
-            await query.message.reply_text(current_settings(True, context))
-            return R_SETTINGS
+        await query.edit_message_text(f"Источники температуры изменены.", reply_markup=None)
+        await query.message.reply_text(current_settings(True, context))
+        key = [[InlineKeyboardButton("Изменить источники температуры", callback_data="temp")]]
+        time.sleep(1)
+        await query.message.reply_text("Также можно", reply_markup=InlineKeyboardMarkup(key))
+        return R_SETTINGS
     else:
         d[sub_option] = not d[sub_option]
         context.chat_data["rain-select"] = d
-        selected = "\n".join([s for s in d.keys() if d[s]])
+        selected = "".join(["\n-  "+s for s in d.keys() if d[s]])
         await query.edit_message_text(source_choose_text('rain') + selected,
                                       reply_markup=InlineKeyboardMarkup(source_keyboard()))
         return R_SETTINGS
@@ -227,6 +219,15 @@ async def handle_again(update: Update, context: CallbackContext):
         await query.message.delete()
         return await days(query, context)
 
+
+async def handle_one_button(update: Update, context: CallbackContext):
+    query = update.callback_query
+    await query.answer()
+    if query.data == "temp":
+        await temp_option(update, context)
+    if query.data == "rain":
+        await rain_option(update, context)
+
 async def debug(update: Update, context: CallbackContext):
     await update.message.reply_text(pformat(context.chat_data))
 
@@ -249,10 +250,12 @@ def main() -> None:
                 CallbackQueryHandler(rain_option, pattern='^' + str(R_SETTINGS) + '$')
             ],
             T_SETTINGS: [
-                CallbackQueryHandler(handle_temp_sources)
+                CallbackQueryHandler(handle_temp_sources, pattern='|'.join([*sites, "stop"])),
+                CallbackQueryHandler(handle_one_button, pattern='rain')
             ],
             R_SETTINGS: [
-                CallbackQueryHandler(handle_rain_sources)
+                CallbackQueryHandler(handle_rain_sources, pattern='|'.join([*sites, "stop"])),
+                CallbackQueryHandler(handle_one_button, pattern='temp')
             ]
         },
         fallbacks=[CommandHandler("settings", settings)]
@@ -260,11 +263,12 @@ def main() -> None:
 
     application.add_handler(settings_handler)
     entry_for_days = [MessageHandler(filters.TEXT & ~filters.COMMAND, days),
-                      CallbackQueryHandler(handle_again)]
+                      CallbackQueryHandler(handle_again, pattern=r'again')]
     days_handler = ConversationHandler(
         entry_points=entry_for_days,
         states={
-            CHOOSING_DAY: [CallbackQueryHandler(handle_day)],
+            CHOOSING_DAY: [CallbackQueryHandler(handle_day, pattern=r'\d{6,8}')],
+            REPEAT: [CallbackQueryHandler(handle_again)]
         },
         fallbacks=entry_for_days
     )
