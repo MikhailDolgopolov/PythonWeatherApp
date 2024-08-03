@@ -50,7 +50,7 @@ def render_forecast_data(forecast: Forecast, date: datetime, save=True, show=Fal
     mean_prec = rains.mean(axis=1)
     prec_count = np.count_nonzero(mean_prec)
     prec_per_hour = 0 if prec_count == 0 else sum(mean_prec) / prec_count
-    precipitation_exists = prec_per_hour > 0.1
+    precipitation_exists = prec_per_hour > 0.1 and len(rain_labels)>0
 
     if not precipitation_exists:
         plt.ylim(bottom=bottom)
