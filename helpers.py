@@ -15,7 +15,7 @@ morph = MorphAnalyzer()
 
 
 def my_point():
-    return 55.57, 35.91
+    return 55.58, 37.91
 
 
 def read_json(json_path: Union[Path, str])->dict:
