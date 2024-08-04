@@ -22,6 +22,11 @@ from Forecast import Forecast
 from ForecastRendering import render_forecast_data
 from helpers import read_json
 
+from warnings import filterwarnings
+from telegram.warnings import PTBUserWarning
+
+filterwarnings(action="ignore", message=r".*CallbackQueryHandler", category=PTBUserWarning)
+
 # Set up logging
 logging.basicConfig(format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
                     level=logging.INFO)
@@ -64,7 +69,7 @@ async def start(update: Update, context: CallbackContext) -> None:
     """)
     time.sleep(2)
     await update.message.reply_text(
-        "Также, можно настроить, из данных каких сайтов будут показаны температура и осадки. Для этого используйте команду /settings")
+        "Также можно настроить, из данных каких сайтов будут показаны температура и осадки. Для этого используйте команду /settings")
     context.chat_data.clear()
     context.chat_data["temp-sources"] = sites
     context.chat_data["rain-sources"] = sites
