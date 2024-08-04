@@ -17,6 +17,13 @@
             </Attribute>
           </value>
         </entry>
+        <entry key="\forecast\Foreca\20240806.csv">
+          <value>
+            <Attribute>
+              <option name="separator" value="," />
+            </Attribute>
+          </value>
+        </entry>
         <entry key="\forecast\Gismeteo\20240802.csv">
           <value>
             <Attribute>
