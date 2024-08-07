@@ -12,9 +12,9 @@ from pathlib import Path
 
 
 class BaseParser:
-    def __init__(self, name, use_selenium=True):
+    def __init__(self, name, headless=True):
         self.__options = webdriver.ChromeOptions()
-        self.__options.add_argument("--headless")
+        if headless: self.__options.add_argument("--headless")
         self.__options.add_argument("start-maximized")
 
         self.__options.add_experimental_option("excludeSwitches", ["enable-automation"])
@@ -29,7 +29,8 @@ class BaseParser:
             "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36",
             "Mozilla/5.0 (Macintosh; Intel Mac OS X 10.15; rv:89.0) Gecko/20100101 Firefox/89.0",
             "Mozilla/5.0 (Windows NT 10.0; Win64; x64; Trident/7.0; rv:11.0) like Gecko",
-            "Opera/9.80 (Windows NT 10.0; Win64; x64) Presto/2.12.388 Version/12.18", ]
+            # "Opera/9.80 (Windows NT 10.0; Win64; x64) Presto/2.12.388 Version/12.18",
+        ]
         self.__renderers = ["Intel Iris OpenGL Engine",
                             "Intel(R) UHD Graphics 620",
                             "NVIDIA GeForce GTX 1050 Ti",

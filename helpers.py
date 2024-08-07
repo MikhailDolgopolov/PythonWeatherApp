@@ -56,7 +56,7 @@ def check_and_add_numbers(arr, nums, tolerance=1):
     return np.array(result)
 
 
-def random_delay(start=1, end=5):
+def random_delay(start=1.5, end=4):
     time.sleep(random.uniform(start, end))
 
 

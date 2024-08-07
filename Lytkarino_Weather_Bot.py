@@ -20,7 +20,7 @@ from telegram.ext import (
 from Day import Day
 from Forecast import Forecast
 from ForecastRendering import render_forecast_data
-from helpers import read_json
+from helpers import read_json, random_delay
 
 from warnings import filterwarnings
 from telegram.warnings import PTBUserWarning
@@ -75,12 +75,24 @@ async def start(update: Update, context: CallbackContext) -> None:
     context.chat_data["rain-sources"] = sites
 
 
+def periodic_task():
+    print("Auto-updates started")
+
+    forecast = Forecast()
+    while True:
+        for i in range(10):
+            forecast.load_new_data(datetime.today()+timedelta(days=i))
+            random_delay()
+        time.sleep(3600*2.5)
+
+
+
 async def send(thing: Union[Update, CallbackQuery], context: CallbackContext, date: datetime) -> int:
     chat_id = thing.message.chat_id
     initial_message = await thing.message.reply_text('Это может занять некоторое время...')
     t, r = context.chat_data.get("temp-sources", []), context.chat_data.get("rain-sources", [])
     forecast = Forecast(temp_sources=t, rainfall_sources=r)
-    pic = render_forecast_data(forecast, date, uid=chat_id)
+    pic = render_forecast_data(forecast.fetch_forecast(date), date, uid=chat_id)
 
     await context.bot.send_photo(chat_id=chat_id, photo=pic["path"], caption=forecast.last_updated(date).strftime(
         "Данные в последний раз обновлены %d.%m.%Y, в %H:%M"))
@@ -248,6 +260,7 @@ async def debug(update: Update, context: CallbackContext):
 
 
 def main() -> None:
+    threading.Thread(target=periodic_task, daemon=True).start()
     persistence = PicklePersistence(filepath='bot_persitence', update_interval=5)
     application = Application.builder().token(TOKEN).persistence(persistence).build()
     application.add_handler(CommandHandler("start", start))

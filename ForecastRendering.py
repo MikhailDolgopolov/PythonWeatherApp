@@ -17,9 +17,9 @@ pd.set_option('display.max_columns', 10)  # Increase the number of columns to di
 pd.set_option('display.max_colwidth', 50)  # Set the max column width to 50 characters
 
 
-def render_forecast_data(forecast: Forecast, date: datetime, save=True, show=False, uid:int = 0):
+def render_forecast_data(data:pd.DataFrame, date: datetime, save=True, show=False, uid:int = 0):
     day = Day(date)
-    data = forecast.fetch_forecast(date)
+
     print(f"Rendering for {day.full_date}")
     colormap = {"Foreca": "forestgreen", "Gismeteo": "blue", "Openmeteo": "orangered"}
     fig, ax1 = plt.subplots(figsize=(6, 5))
@@ -37,7 +37,7 @@ def render_forecast_data(forecast: Forecast, date: datetime, save=True, show=Fal
 
         plt.plot(x_axis, plot_line, color=colormap[temp_labels[i]], label=temp_labels[i], zorder=4)
 
-    plt.plot(x_axis, data["mean_temp"], color=[0.6] * 3, alpha=0.5, linewidth=25, zorder=2)
+    plt.plot(x_axis, data["mean_temp"], color=[0.6] * 3, alpha=0.4, linewidth=25, zorder=2)
 
     sunspan = day.suntime
     plt.axvspan(sunspan[0], sunspan[1], alpha=0.3, color="#ebbf2f", zorder=0)
