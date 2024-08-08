@@ -1,4 +1,5 @@
 import datetime
+import os.path
 import threading
 from typing import Self
 
@@ -44,11 +45,9 @@ class GismeteoSeeker(SeekParser):
             return BeautifulSoup(self.driver.page_source, "lxml")
 
     def _parse_weather(self, date:datetime, path:str) -> pd.DataFrame | None:
-        print("Loading Gismeteo...")
         if self.driver_down:
             self.init_driver()
             self.driver.get(self.__url)
-            # print(self.driver.current_url)
 
         soup = self.parse_page(date)
         if soup is None:
@@ -76,15 +75,16 @@ class GismeteoSeeker(SeekParser):
         return df
 
     def get_weather(self, date:datetime) -> pd.DataFrame:
-        # if self.driver_down: self.init_driver()
         if self.home:
+            loaded=None
             path = f"{self.forecast_path}/{date.strftime('%Y%m%d')}.csv"
-            if self.metadata.update_is_overdue(date):
+            if self.metadata.update_is_overdue(date) or not os.path.isfile(path):
                 loaded = self._parse_weather(date, path)
-            else:
-                loaded = pd.read_csv(path, dtype=float)
-            if self.metadata.update_is_due(date):
+            elif self.metadata.update_is_due(date):
                 threading.Thread(target=self._parse_weather, args=[date, path]).start()
+            elif os.path.isfile(path):
+                loaded = pd.read_csv(path, dtype=float)
+
             if loaded is None:
                 loaded = pd.DataFrame({}, columns=["time", "temperature", "precipitation", "wind-speed"]).astype(float)
 

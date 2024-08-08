@@ -83,15 +83,13 @@ async def start(update: Update, context: CallbackContext) -> None:
 
 
 def periodic_task():
-    # print("Auto-updates stopped due to None in foreca table seek")
     print("Auto-updates started")
-    urllib3.PoolManager(maxsize=50)
     forecast = Forecast(mode="Seeker")
     while True:
-        for i in range(5):
-            forecast.load_new_data(datetime.today()+timedelta(days=i))
-            random_delay(3,5)
-        time.sleep(3600*2.5)
+        for i in range(10):
+            forecast.load_new_data(datetime.today() + timedelta(days=i))
+            random_delay(2, 4)
+        time.sleep(3600 * 2.5)
 
 
 
@@ -317,10 +315,10 @@ async def get_city(update: Update, context: CallbackContext):
     await update.message.reply_text(f"В данный момент выбран город {city}")
 
 def main() -> None:
-    threading.Thread(target=periodic_task, daemon=True).start()
+
     persistence = PicklePersistence(filepath='bot_persitence', update_interval=5)
     application = Application.builder().token(TOKEN).persistence(persistence).build()
-
+    threading.Thread(target=periodic_task, daemon=True).start()
     application.add_handler(CommandHandler("start", start))
     application.add_handler(MessageHandler(filters.Regex(re.compile('город', re.IGNORECASE)), get_city))
 

@@ -67,6 +67,8 @@ class Forecast:
         # self.fetch_forecast(date)
         for getter in self.sources:
             getter.get_weather(date)
+            time.sleep(0.2)
+        print(datetime.now(), f"finished updating forecasts for {date.strftime('%d.%m.%Y')}")
 
     def find_city(self, city) -> Self:
         self.city = city
