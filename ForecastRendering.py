@@ -17,9 +17,9 @@ pd.set_option('display.max_columns', 10)  # Increase the number of columns to di
 pd.set_option('display.max_colwidth', 50)  # Set the max column width to 50 characters
 
 
-def render_forecast_data(data:pd.DataFrame, date: datetime, save=True, show=False, uid:int = 0):
+def render_forecast_data(data:pd.DataFrame, date: datetime, city:str = None, save=True, show=False, uid:int = 0):
     day = Day(date)
-
+    data = data.interpolate()
     print(f"Rendering for {day.full_date}")
     colormap = {"Foreca": "forestgreen", "Gismeteo": "blue", "Openmeteo": "orangered"}
     fig, ax1 = plt.subplots(figsize=(6, 5))
@@ -84,7 +84,8 @@ def render_forecast_data(data:pd.DataFrame, date: datetime, save=True, show=Fals
     plt.grid(which="both", color="lightgray")
     plt.xlim(0, 23)
     plt.xticks(x_axis)
-    plt.title(f"Прогноз на {day.accs_day_name}, {day.D_month}", y=1.05)
+    plt.title(f"Прогноз на {day.accs_day_name}, {day.D_month}", y=1.07)
+    if city: plt.suptitle(city, fontsize='medium', y=0.92)
 
     path = f"Images/{day.short_date}_{uid}.png"
 

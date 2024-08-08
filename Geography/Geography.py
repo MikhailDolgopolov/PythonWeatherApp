@@ -1,8 +1,12 @@
+import string
 from pprint import pprint
+from typing import List
 
 import Levenshtein
+import numpy as np
 from geopy import Nominatim, Location
 from geopy.exc import GeocoderTimedOut
+from geopy.distance import distance
 
 
 def verify_city(name):
@@ -65,3 +69,43 @@ def get_closest_city_matches(input_name, max_results=3) -> list[Location]:
         print("Geocoding service timed out.")
         return []
 
+
+def distance_between_cities(point:str, target:str) ->float:
+    geolocator = Nominatim(user_agent="city_name_detector")
+
+    try:
+        # Geocode the input to get potential city matches
+        start:Location = geolocator.geocode(point,
+                                       # country_codes='RU',
+                                       addressdetails=True,
+                                       language='ru',
+                                       featuretype='city')
+        end: Location = geolocator.geocode(target,
+                                   # country_codes='RU',
+                                   addressdetails=True,
+                                   language='ru',
+                                   featuretype='city')
+
+        if start is None or end is None:
+            return 20000
+
+        return distance((start.latitude, start.longitude), (end.latitude, end.longitude)).km
+    except GeocoderTimedOut:
+        print("Geocoding service timed out.")
+        return 20000
+
+
+def find_closest_city(target_city: str, cities: List[str]) -> str:
+    closest_city = cities[0]
+    min_distance = float('inf')  # Initialize to a large number
+
+    for city in cities:
+        distance = distance_between_cities(city.translate(str.maketrans('', '', string.punctuation)), target_city)
+        if distance < 15:
+            return city
+        if distance < min_distance:
+            min_distance = distance
+            closest_city = city
+
+    if closest_city is None: closest_city=cities[0]
+    return closest_city

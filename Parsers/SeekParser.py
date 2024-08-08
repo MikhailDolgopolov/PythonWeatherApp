@@ -8,5 +8,5 @@ class SeekParser(BaseParser):
         super().__init__(**kwargs)
         self.home=True
 
-    def find(self, name:str) -> Self:
+    def find_city(self, name:str) -> Self:
         raise NotImplementedError("It's up to child classes!")

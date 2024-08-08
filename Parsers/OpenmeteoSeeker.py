@@ -69,7 +69,7 @@ class OpenmeteoSeeker(SeekParser):
     def get_last_forecast_update(self, date) -> datetime:
         return self.__update_time
 
-    def find(self, name:str) -> Self:
+    def find_city(self, name:str) -> Self:
         p = get_coordinates(name)
         self.__params['latitude'] = p[0]
         self.__params['longitude'] = p[1]

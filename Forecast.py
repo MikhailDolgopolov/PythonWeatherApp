@@ -2,7 +2,7 @@ import concurrent.futures
 import time
 from datetime import datetime
 from os import path, mkdir
-from typing import Union, Literal
+from typing import Union, Literal, Self
 
 import numpy as np
 import pandas as pd
@@ -30,7 +30,7 @@ class Forecast:
     def all_sources(cls):
         return ["Gismeteo", "Foreca", "Openmeteo"]
 
-    def __init__(self, temp_sources=None, rainfall_sources=None, mode:Literal["Parser","Seeker"] = 'Parser'):
+    def __init__(self, temp_sources=None, rainfall_sources=None, mode:Literal["Parser","Seeker"] = 'Seeker'):
         if temp_sources is None or len(temp_sources)==0:
             temp_sources = self.all_sources()
         if rainfall_sources is None: rainfall_sources = []
@@ -60,13 +60,27 @@ class Forecast:
 
     def last_updated(self, date) -> datetime:
         dates = [getter.get_last_forecast_update(date) for getter in self.sources]
+        # print(self.sources, ":", dates)
         return min(dates)
 
     def load_new_data(self, date:datetime):
+        # self.fetch_forecast(date)
         for getter in self.sources:
-            forecast = getter.get_weather(date)
+            getter.get_weather(date)
 
-    def find_city(self, city):
+    def find_city(self, city) -> Self:
         self.city = city
         for getter in self.sources:
-            getter.find(city)
+            # print(f"{datetime.now()} started {getter.name}")
+            getter.find_city(city)
+            # print(f"{datetime.now()} finished {getter.name}")
+        return self
+
+    def change_sources(self, temp_sources=None, rainfall_sources=None) -> Self:
+        if temp_sources is None or len(temp_sources)==0:
+            temp_sources = self.all_sources()
+        if rainfall_sources is None: rainfall_sources = []
+        self.temps = temp_sources
+        self.rainfalls = rainfall_sources
+        return self
+

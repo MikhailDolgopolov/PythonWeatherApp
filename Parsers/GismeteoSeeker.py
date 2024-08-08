@@ -7,6 +7,7 @@ import pandas as pd
 from bs4 import BeautifulSoup
 from selenium.webdriver.common.by import By
 
+from Geography.Geography import find_closest_city
 from MetadataController import MetadataController
 from Parsers.BaseParser import BaseParser
 from Parsers.SeekParser import SeekParser
@@ -14,9 +15,9 @@ from helpers import random_delay
 
 
 class GismeteoSeeker(SeekParser):
-    def __init__(self):
-        self.__url = "https://www.gismeteo.ru/"
-        super().__init__(name="Gismeteo", headless=False)
+    def __init__(self, headless=True):
+        self.__url = "https://www.gismeteo.ru/weather-lytkarino-12640/"
+        super().__init__(name="Gismeteo", headless=headless)
         self.metadata = MetadataController(self.forecast_path)
 
     def parse_page(self, date:datetime) -> BeautifulSoup | None:
@@ -30,7 +31,7 @@ class GismeteoSeeker(SeekParser):
                 print("Couldn't find the element")
                 return None
             random_delay()
-            if self.home: self.metadata.update_with_now(date)
+
             return BeautifulSoup(self.driver.page_source, "lxml")
         else:
             try:
@@ -40,17 +41,21 @@ class GismeteoSeeker(SeekParser):
                     random_delay(0.5, 2)
             except:
                 return None
-            self.metadata.update_with_now(date)
             return BeautifulSoup(self.driver.page_source, "lxml")
 
     def _parse_weather(self, date:datetime, path:str) -> pd.DataFrame | None:
         print("Loading Gismeteo...")
-        if self.driver_down: self.init_driver()
+        if self.driver_down:
+            self.init_driver()
+            self.driver.get(self.__url)
+            # print(self.driver.current_url)
+
         soup = self.parse_page(date)
         if soup is None:
             print("Couldn't parse Gismeteo")
             super().close()
             return None
+        self.metadata.update_with_now(date)
         table = soup.find("div", "widget-items")
         times_row = table.find("div", "widget-row-datetime-time")
         clocks = [s.text.split(":")[0] for s in times_row.findAll("span")]
@@ -71,6 +76,7 @@ class GismeteoSeeker(SeekParser):
         return df
 
     def get_weather(self, date:datetime) -> pd.DataFrame:
+        # if self.driver_down: self.init_driver()
         if self.home:
             path = f"{self.forecast_path}/{date.strftime('%Y%m%d')}.csv"
             if self.metadata.update_is_overdue(date):
@@ -84,25 +90,36 @@ class GismeteoSeeker(SeekParser):
 
         else:
             loaded = self._parse_weather(date, "")
-        loaded.set_index('time').reindex(np.arange(0, 24)).reset_index(drop=False).interpolate()
+        loaded = loaded.set_index('time').reindex(np.arange(0, 24)).reset_index(drop=False).interpolate()
         return loaded
 
     def get_last_forecast_update(self, date: datetime) -> datetime:
         return self.metadata.get_last_update(date, self.home)
 
-    def find(self, name:str) -> Self:
-        self.home = name.lower() == "лыткарино"
+    def find_city(self, name:str) -> Self:
+        self.home = "лыткарино" in name.lower()
+        # print(name.lower())
         self.init_driver()
         self.driver.get(self.__url)
+        if self.home:
+            return self
 
         random_delay()
 
-        search = self.driver.find_element(By.XPATH, '/html/body/header/div[2]/div/div[1]/div[1]/div/input')
+        search = self.driver.find_element(By.CSS_SELECTOR, '.search-form input[type=text]')
         search.send_keys(name)
         random_delay()
         try:
-            answer = self.driver.find_elements(By.CLASS_NAME, "search-item")[0]
-            random_delay()
+            try:
+                answers = self.driver.find_elements(By.CSS_SELECTOR, ".search-item span")[:4]
+                options = [a.text.replace('\n', ' ').split(' (')[0] for a in answers]
+                best = find_closest_city(name, options)
+                random_delay()
+
+                answer = self.driver.find_elements(By.CSS_SELECTOR, ".search-item")[options.index(best)]
+            except:
+                answer = self.driver.find_elements(By.CSS_SELECTOR, ".search-item")[0]
+            print("answer: ", answer.text)
             answer.click()
             return self
         except:
