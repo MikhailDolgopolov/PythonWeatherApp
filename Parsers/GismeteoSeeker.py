@@ -1,5 +1,6 @@
 import datetime
 import threading
+from typing import Self
 
 import numpy as np
 import pandas as pd
@@ -39,8 +40,7 @@ class GismeteoSeeker(SeekParser):
                     random_delay(0.5, 2)
             except:
                 return None
-            # self.metadata.update_with_now(date)
-            if self.home: self.metadata.update_with_now(date)
+            self.metadata.update_with_now(date)
             return BeautifulSoup(self.driver.page_source, "lxml")
 
     def _parse_weather(self, date:datetime, path:str) -> pd.DataFrame | None:
@@ -87,7 +87,10 @@ class GismeteoSeeker(SeekParser):
         loaded.set_index('time').reindex(np.arange(0, 24)).reset_index(drop=False).interpolate()
         return loaded
 
-    def find(self, name:str):
+    def get_last_forecast_update(self, date: datetime) -> datetime:
+        return self.metadata.get_last_update(date, self.home)
+
+    def find(self, name:str) -> Self:
         self.home = name.lower() == "лыткарино"
         self.init_driver()
         self.driver.get(self.__url)

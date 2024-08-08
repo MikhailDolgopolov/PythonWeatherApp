@@ -3,6 +3,7 @@ import random
 import threading
 import time
 from datetime import datetime
+from typing import Self
 
 import pandas as pd
 from bs4 import BeautifulSoup
@@ -27,7 +28,7 @@ class ForecaSeeker(SeekParser):
             self.driver.get(url)
             random_delay()
             source = self.driver.page_source
-            if self.home: self.metadata.update_with_now(date)
+            self.metadata.update_with_now(date)
             soup = BeautifulSoup(source, "lxml")
             return soup
         except Exception as ex:
@@ -67,9 +68,9 @@ class ForecaSeeker(SeekParser):
         return data
 
     def get_last_forecast_update(self, date: datetime) -> datetime:
-        return self.metadata.get_last_update(date)
+        return self.metadata.get_last_update(date, self.home)
 
-    def find(self, name:str):
+    def find(self, name:str) -> Self:
         if not name: return self
         self.home = name.lower() == "лыткарино"
         self.init_driver()
@@ -77,14 +78,31 @@ class ForecaSeeker(SeekParser):
 
         #/html/body/div[2]/div/header/div[1]/div/div/form/input[1]
 
-        search = self.driver.find_element(By.XPATH, '/html/body/div[2]/div/header/div[1]/div/div/form/input[1]')
-        search.send_keys(name)
-        random_delay()
         try:
-            answer = self.driver.find_elements(By.CLASS_NAME, "result-row")[0]
             random_delay()
+            try:
+                #//*[@id="qc-cmp2-ui"]/div[2]/div/button[2]
+                button = self.driver.find_element(By.XPATH, "//*[@id='qc-cmp2-ui']/div[2]/div/button[2]")
+                button.click()
+                random_delay()
+                print("Confidential click")
+            except:
+                print("No button")
+                pass
+            random_delay()
+            #/html/body/div[3]/div/header/div[1]/div/div/form/input[1]
+            #body > div.page-wrap > div > header > div.search-bar-inner > div > div > form > input[type=text]:nth-child(1)
+            #div.search-bar-inner form>input[type=text]
+            # search = self.driver.find_element(By.XPATH, '/html/body/div[2]/div/header/div[1]/div/div/form/input[1]')
+            search = self.driver.find_element(By.CSS_SELECTOR, "div.search-bar-inner form>input[type=text]")
+            # print(search)
+            search.send_keys(name)
+            random_delay()
+
+            answer = self.driver.find_elements(By.CLASS_NAME, "result-row")[0]
+            # random_delay(120,121)
             answer.click()
-            random_delay(2,4)
+            random_delay()
             return self
         except:
             raise RuntimeError(f"Something went wrong looking up {name}")

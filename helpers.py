@@ -6,7 +6,7 @@ import random
 from datetime import datetime, timedelta
 from glob import glob
 from pathlib import Path
-from typing import Union
+from typing import Union, Literal
 
 import numpy as np
 from pymorphy3 import MorphAnalyzer
@@ -36,7 +36,7 @@ def write_json(data: dict, json_path: Union[Path, str])->None:
         json.dump(data, file, ensure_ascii=False, indent=4)
 
 
-def inflect(word, case: Union["accs", "gent"]) -> str:
+def inflect(word, case: Literal["accs", "gent"]) -> str:
     return morph.parse(word)[0].inflect({case}).word
 
 

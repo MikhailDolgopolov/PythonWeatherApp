@@ -1,17 +1,23 @@
 from datetime import datetime, timedelta
 from pprint import pprint
 
-from Geography.Geography import verify_city
+from Forecast import Forecast
+from Geography.Geography import verify_city, get_closest_city_matches
 from Parsers.ForecaSeeker import ForecaSeeker
 from Parsers.GismeteoParser import GismeteoParser
 from Parsers.GismeteoSeeker import GismeteoSeeker
 
-city = "красноярск"
+input_string = "Тамбов"
 
-city = verify_city(city)
-if not city: raise RuntimeError(city)
-foreign = ForecaSeeker().find(city)
-print(foreign.home)
-data = foreign.get_weather(datetime.today()+timedelta(days=1))
+cities = get_closest_city_matches(input_string)
+forecast = Forecast(mode="Seeker")
+if not cities:
+    print("Not found ", input_string)
+else:
+    city = cities[0].raw["name"]
 
-print(data)
+    seeker = ForecaSeeker()
+    seeker.find(city)
+    # forecast.find_city(city)
+
+    # print(forecast.city)

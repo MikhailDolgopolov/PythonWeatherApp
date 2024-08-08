@@ -2,6 +2,7 @@ import concurrent.futures
 import time
 from datetime import datetime
 from os import path, mkdir
+from typing import Union, Literal
 
 import numpy as np
 import pandas as pd
@@ -13,6 +14,10 @@ from Parsers.BaseParser import BaseParser
 from Parsers.ForecaParser import ForecaParser
 from Parsers.GismeteoParser import GismeteoParser
 from Parsers.OpenmeteoParser import OpenmeteoParser
+from Parsers.SeekParser import SeekParser
+from Parsers.ForecaSeeker import ForecaSeeker
+from Parsers.GismeteoSeeker import GismeteoSeeker
+from Parsers.OpenmeteoSeeker import OpenmeteoSeeker
 
 pd.set_option('display.width', 200)  # Increase the width to 200 characters
 pd.set_option('display.max_columns', 10)  # Increase the number of columns to display to 10
@@ -25,13 +30,14 @@ class Forecast:
     def all_sources(cls):
         return ["Gismeteo", "Foreca", "Openmeteo"]
 
-    def __init__(self, temp_sources=None, rainfall_sources=None):
+    def __init__(self, temp_sources=None, rainfall_sources=None, mode:Literal["Parser","Seeker"] = 'Parser'):
         if temp_sources is None or len(temp_sources)==0:
             temp_sources = self.all_sources()
         if rainfall_sources is None: rainfall_sources = []
         self.temps = temp_sources
         self.rainfalls = rainfall_sources
-        self.sources: list[BaseParser] = [globals()[f"{s}Parser"]() for s in ["Gismeteo", "Foreca", "Openmeteo"]]
+        self.sources: list[BaseParser|SeekParser] = [globals()[f"{s}{mode}"]() for s in self.all_sources()]
+        self.city = 'Лыткарино'
 
     def fetch_forecast(self, date: datetime) -> pd.DataFrame:
         combined = pd.DataFrame({"time": np.arange(0, 24)}, dtype=float)
@@ -60,3 +66,7 @@ class Forecast:
         for getter in self.sources:
             forecast = getter.get_weather(date)
 
+    def find_city(self, city):
+        self.city = city
+        for getter in self.sources:
+            getter.find(city)

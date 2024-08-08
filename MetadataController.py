@@ -11,8 +11,10 @@ class MetadataController:
     def __init__(self, path: Path):
         self.metadata_file = path / "metadata.json"
         delete_old_files([path])
+        self.__last_update = None
 
     def update_with_now(self, date: datetime) -> None:
+        self.__last_update = datetime.now()
         metadata = read_json(self.metadata_file)
         min_date = datetime.today() - timedelta(days=1)
         key = date.strftime("%Y-%m-%d")
@@ -22,7 +24,9 @@ class MetadataController:
         write_json(new_meta, str(self.metadata_file))
         # print(f"Metadata updated: {key}:  {newstr}")
 
-    def get_last_update(self, date: datetime) -> Union[datetime, None]:
+    def get_last_update(self, date: datetime, home=True) -> Union[datetime, None]:
+        if not home:
+            return self.__last_update
         given: str = date.strftime("%Y-%m-%d")
         metadata = read_json(self.metadata_file)
         if given in metadata:

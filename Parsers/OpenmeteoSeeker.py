@@ -1,4 +1,5 @@
 from datetime import datetime, timedelta
+from typing import Self
 
 import numpy as np
 import openmeteo_requests
@@ -68,7 +69,7 @@ class OpenmeteoSeeker(SeekParser):
     def get_last_forecast_update(self, date) -> datetime:
         return self.__update_time
 
-    def find(self, name:str):
+    def find(self, name:str) -> Self:
         p = get_coordinates(name)
         self.__params['latitude'] = p[0]
         self.__params['longitude'] = p[1]
