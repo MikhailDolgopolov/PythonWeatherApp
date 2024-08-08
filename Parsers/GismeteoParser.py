@@ -80,8 +80,7 @@ class GismeteoParser(BaseParser):
             loaded = pd.read_csv(path, dtype=float)
         if self.metadata.update_is_due(date):
             threading.Thread(target=self._parse_weather, args=[date, path]).start()
-        if loaded is None: loaded = pd.DataFrame({}, columns=["time", "temperature", "precipitation", "wind-speed"]).astype(
-            float)
+        if loaded is None: loaded = self.empty_frame
         return loaded.set_index('time').reindex(np.arange(0,24)).reset_index(drop=False).interpolate()
 
     def get_last_forecast_update(self, date:datetime) -> datetime:

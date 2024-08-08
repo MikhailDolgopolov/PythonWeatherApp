@@ -60,7 +60,7 @@ class Forecast:
 
     def last_updated(self, date) -> datetime:
         dates = [getter.get_last_forecast_update(date) for getter in self.sources]
-        # print(self.sources, ":", dates)
+        print([s.name for s in self.sources], ":", dates)
         return min(dates)
 
     def load_new_data(self, date:datetime):

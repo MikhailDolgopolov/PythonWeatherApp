@@ -78,18 +78,21 @@ class GismeteoSeeker(SeekParser):
         if self.home:
             loaded=None
             path = f"{self.forecast_path}/{date.strftime('%Y%m%d')}.csv"
-            if self.metadata.update_is_overdue(date) or not os.path.isfile(path):
+            file_existed = os.path.isfile(path)
+            if self.metadata.update_is_overdue(date) or not file_existed:
                 loaded = self._parse_weather(date, path)
             elif self.metadata.update_is_due(date):
                 threading.Thread(target=self._parse_weather, args=[date, path]).start()
-            elif os.path.isfile(path):
+            if file_existed:
                 loaded = pd.read_csv(path, dtype=float)
 
             if loaded is None:
-                loaded = pd.DataFrame({}, columns=["time", "temperature", "precipitation", "wind-speed"]).astype(float)
+                loaded = self.empty_frame
 
         else:
             loaded = self._parse_weather(date, "")
+
+        if not self.active: loaded = self.empty_frame
         loaded = loaded.set_index('time').reindex(np.arange(0, 24)).reset_index(drop=False).interpolate()
         return loaded
 
@@ -102,6 +105,7 @@ class GismeteoSeeker(SeekParser):
         self.init_driver()
         self.driver.get(self.__url)
         if self.home:
+            self.active = True
             return self
 
         random_delay()
@@ -115,7 +119,11 @@ class GismeteoSeeker(SeekParser):
                 options = [a.text.replace('\n', ' ').split(' (')[0] for a in answers]
                 best = find_closest_city(name, options)
                 random_delay()
-
+                if best is None:
+                    self.active = False
+                    return self
+                else:
+                    self.active = True
                 answer = self.driver.find_elements(By.CSS_SELECTOR, ".search-item")[options.index(best)]
             except:
                 answer = self.driver.find_elements(By.CSS_SELECTOR, ".search-item")[0]

@@ -15,7 +15,7 @@ class BaseParser:
     def __init__(self, name, headless=True):
         self.__options = webdriver.ChromeOptions()
         if headless: self.__options.add_argument("--headless")
-        # self.__options.add_argument("start-maximized")
+        self.__options.add_argument("start-maximized")
 
         self.__options.add_experimental_option("excludeSwitches", ["enable-automation"])
         self.__options.add_experimental_option('useAutomationExtension', False)
@@ -87,3 +87,8 @@ class BaseParser:
 
     def get_last_forecast_update(self, date: datetime) -> datetime:
         raise NotImplementedError("Subclasses should implement this method")
+
+    @property
+    def empty_frame(self)->pd.DataFrame:
+        return pd.DataFrame({}, columns=["time", "temperature", "precipitation",
+                                         "wind-speed"]).astype(float)

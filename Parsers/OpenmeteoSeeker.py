@@ -27,7 +27,6 @@ class OpenmeteoSeeker(SeekParser):
     def __init__(self):
         super().__init__(name="Openmeteo")
         self.__url = "https://api.open-meteo.com/v1/forecast"
-        print("Loading OpenMeteo...")
         p = my_point()
         self.__params = {
             "latitude": p[0],
@@ -37,6 +36,10 @@ class OpenmeteoSeeker(SeekParser):
             "timezone": "Europe/Moscow",
             "forecast_days": 8
         }
+        self._load_weather()
+
+    def _load_weather(self):
+        # print("Loading OpenMeteo...")
         response = openmeteo.weather_api(self.__url, params=self.__params)[0]
         hourly = response.Hourly()
         hourly_temperature_2m = hourly.Variables(0).ValuesAsNumpy()
@@ -53,14 +56,17 @@ class OpenmeteoSeeker(SeekParser):
 
         df = pd.DataFrame(data=hourly_data)
         df["date"] = pd.to_datetime(df['date']).dt.tz_convert('Europe/Moscow')
-        df = df.rename({"temperature_2m":"temperature", "wind_speed_10m":"wind-speed"}, axis=1)
+        df = df.rename({"temperature_2m": "temperature", "wind_speed_10m": "wind-speed"}, axis=1)
         self.__full_dataframe = df
         self.__update_time = datetime.now()
 
-    def get_weather(self, date:datetime) -> pd.DataFrame:
+    def get_weather(self, date: datetime) -> pd.DataFrame:
+        if (datetime.now().date()-self.__update_time.date()) > timedelta(hours=MetadataController.due()):
+            self._load_weather()
         start_of_day = pd.Timestamp(date.date()).tz_localize('Europe/Moscow')
-        end_of_day = start_of_day+pd.Timedelta(days=1)
-        data = self.__full_dataframe[(self.__full_dataframe['date'] >= start_of_day) & (self.__full_dataframe['date'] < end_of_day)]
+        end_of_day = start_of_day + pd.Timedelta(days=1)
+        data = self.__full_dataframe[
+            (self.__full_dataframe['date'] >= start_of_day) & (self.__full_dataframe['date'] < end_of_day)]
         data.insert(0, "time", data["date"].dt.hour)
         data = data.drop("date", axis=1).reset_index(drop=True)
 
@@ -69,9 +75,8 @@ class OpenmeteoSeeker(SeekParser):
     def get_last_forecast_update(self, date) -> datetime:
         return self.__update_time
 
-    def find_city(self, name:str) -> Self:
+    def find_city(self, name: str) -> Self:
         p = get_coordinates(name)
         self.__params['latitude'] = p[0]
         self.__params['longitude'] = p[1]
         return self
-

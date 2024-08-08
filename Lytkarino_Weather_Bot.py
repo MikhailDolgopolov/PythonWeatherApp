@@ -92,7 +92,6 @@ def periodic_task():
         time.sleep(3600 * 2.5)
 
 
-
 async def send(thing: Union[Update, CallbackQuery], context: CallbackContext, date: datetime) -> int:
     chat_id = thing.message.chat_id
     initial_message = await thing.message.reply_text('Это может занять некоторое время...')
@@ -266,6 +265,7 @@ async def handle_one_button(update: Update, context: CallbackContext):
 async def debug(update: Update, context: CallbackContext):
     await update.message.reply_text(pformat(context.chat_data))
 
+
 async def find_city(update: Update, context: CallbackContext):
     cities = get_closest_city_matches(update.message.text)
     loading = await update.message.reply_text("Подождите...")
@@ -276,21 +276,25 @@ async def find_city(update: Update, context: CallbackContext):
         data = [city.raw['address'] for city in cities]
         names = [address.get('city') or address.get('town') or address.get('village') for address in data]
         states = [
-            address.get('county') or address.get('state_district') or address.get('state') or address.get('region')
+            address.get('state') or address.get('region') or address.get('county') or address.get('state_district')
             for address in data]
         states = [data[i].get('region') or data[i].get('state_district') or data[i].get('county')
-                  if names[i] == states[i] else states[i] for i in range(len(cities))]
+                  if names[i] in states[i] else states[i] for i in range(len(cities))]
         addresses = [f"{names[i]}, {states[i]}" if states[i] else names[i] for i in range(len(cities))]
 
-        context.chat_data['cities_select'] = {coors[i]:addresses[i] for i in range(len(cities))}
-        await loading.delete()
-        if len(cities)==1:
-            return await click_city(update, context, addresses[0])
+        context.chat_data['cities_select'] = {coors[i]: addresses[i] for i in range(len(cities))}
+
         keyboard = [[InlineKeyboardButton(text=addresses[i], callback_data=coors[i])] for i in range(len(cities))]
 
-        await update.message.reply_text("Выберите город, который имеете в виду:", reply_markup=InlineKeyboardMarkup(keyboard))
+        await context.bot.delete_message(update.message.chat_id, loading.message_id)
+        # if len(cities) == 1:
+        #     return await click_city(update, context, addresses[0])
+
+        await update.message.reply_text("Выберите город, который имеете в виду:",
+                                        reply_markup=InlineKeyboardMarkup(keyboard))
         return CHOOSING_CITY
     else:
+        await context.bot.delete_message(update.message.chat_id, loading.message_id)
         return await days(update, context)
 
 
@@ -298,29 +302,32 @@ async def handle_city(update: Update, context: CallbackContext) -> int:
     query = update.callback_query
     await query.answer()
     full_city = context.chat_data['cities_select'][query.data]
+    keyboard = [[InlineKeyboardButton(text=full_city, callback_data='None')]]
+    await query.edit_message_text("Вы выбрали город", reply_markup=InlineKeyboardMarkup(keyboard))
     return await click_city(update, context, full_city)
 
-async def click_city(thing: Union[Update, CallbackQuery], context: CallbackContext, address:str) -> int:
+
+async def click_city(thing: Union[Update, CallbackQuery], context: CallbackContext, address: str) -> int:
     context.chat_data['city'] = address.split(', ')[0]
-    loading = await thing.message.reply_text(f"{context.chat_data['city']}... Подождите...")
 
     context.chat_data['forecast'].find_city(address)
-    await loading.delete()
-    await thing.message.reply_text("Прогнозы готовы к загрузке")
-    time.sleep(0.5)
+    # await thing.message.reply_text("Прогнозы готовы к загрузке")
+    # time.sleep(0.5)
     return await days(thing, context)
+
 
 async def get_city(update: Update, context: CallbackContext):
     city = context.chat_data['city']
     await update.message.reply_text(f"В данный момент выбран город {city}")
 
-def main() -> None:
 
+def main() -> None:
     persistence = PicklePersistence(filepath='bot_persitence', update_interval=5)
     application = Application.builder().token(TOKEN).persistence(persistence).build()
-    threading.Thread(target=periodic_task, daemon=True).start()
+    # threading.Thread(target=periodic_task, daemon=True).start()
     application.add_handler(CommandHandler("start", start))
     application.add_handler(MessageHandler(filters.Regex(re.compile('город', re.IGNORECASE)), get_city))
+    application.add_handler(MessageHandler(filters.Regex(re.compile('прогноз|погода', re.IGNORECASE)), days))
 
     application.add_handler(
         MessageHandler(filters.Regex(re.compile(r'^(?!.*завтра)сегодня(?!.*завтра).*$', re.IGNORECASE)),

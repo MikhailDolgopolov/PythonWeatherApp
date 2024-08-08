@@ -37,14 +37,13 @@ class ForecaSeeker(SeekParser):
             return None
 
     def _parse_weather(self, date, path) -> pd.DataFrame | None:
-        print("Loading Foreca...")
+        # print("Loading Foreca...")
         if self.driver_down:
             self.init_driver()
             self.driver.get(self.__url)
         soup = self._parse_date(date)
         if soup is None:
             print("Couldn't parse Foreca")
-
             return None
         self.metadata.update_with_now(date)
         table = soup.find("div", class_="hourContainer")
@@ -63,24 +62,28 @@ class ForecaSeeker(SeekParser):
         if not self.home: self._parse_weather(date, "")
         path = f"{self.forecast_path}/{date.strftime('%Y%m%d')}.csv"
         if not os.path.isfile(path) and date.date == datetime.today().date():
+            if not self.active: return self.empty_frame
             return pd.DataFrame({"time": [], "temperature": [], "precipitation": [], "wind-speed": []}).astype(float)
         if self.metadata.update_is_overdue(date):
+            if not self.active: return self.empty_frame
             return self._parse_weather(date, path)
         data = pd.read_csv(path, dtype=float)
         if self.metadata.update_is_due(date):
             threading.Thread(target=self._parse_weather, args=[date, path]).start()
+
+        if not self.active: return self.empty_frame
         return data
 
     def get_last_forecast_update(self, date: datetime) -> datetime:
         return self.metadata.get_last_update(date, self.home)
 
     def find_city(self, name:str) -> Self:
-        if not name: return self
         self.home = "лыткарино" in name.lower()
-        t0 = time.time()
+        # t0 = time.time()
         self.init_driver()
         if self.home:
             self.driver.get("https://www.foreca.ru/Russia/Lytkarino")
+            self.active = True
             return self
         self.driver.get(self.__url)
 
@@ -93,9 +96,9 @@ class ForecaSeeker(SeekParser):
                 button = self.driver.find_element(By.XPATH, "//*[@id='qc-cmp2-ui']/div[2]/div/button[2]")
                 button.click()
                 random_delay(0.1, 0.5)
-                print("Confidential click")
+                # print("Confidential click")
             except:
-                print("No button")
+                # print("No button")
                 pass
             random_delay(0.1, 0.5)
             #/html/body/div[3]/div/header/div[1]/div/div/form/input[1]
@@ -110,6 +113,11 @@ class ForecaSeeker(SeekParser):
                 answers = self.driver.find_elements(By.CLASS_NAME, "result-row")[:4]
                 options = [a.text.replace('\n', ' ').split(' (')[0] for a in answers]
                 best = find_closest_city(name, options)
+                if best is None:
+                    self.active = False
+                    return self
+                else:
+                    self.active = True
                 # print("best: ", best)
                 random_delay()
 
@@ -118,8 +126,7 @@ class ForecaSeeker(SeekParser):
                 answer = self.driver.find_elements(By.CSS_SELECTOR, ".result-row")[0]
             answer.click()
             random_delay(0,1)
-            t1 = time.time()
-            print("time time time", t1-t0)
+            # t1 = time.time()
             return self
         except:
             raise RuntimeError(f"Something went wrong looking up {name}")
