@@ -31,6 +31,48 @@
             </Attribute>
           </value>
         </entry>
+        <entry key="\forecast\Foreca\20240813.csv">
+          <value>
+            <Attribute>
+              <option name="separator" value="," />
+            </Attribute>
+          </value>
+        </entry>
+        <entry key="\forecast\Foreca\20240814.csv">
+          <value>
+            <Attribute>
+              <option name="separator" value="," />
+            </Attribute>
+          </value>
+        </entry>
+        <entry key="\forecast\Foreca\20240815.csv">
+          <value>
+            <Attribute>
+              <option name="separator" value="," />
+            </Attribute>
+          </value>
+        </entry>
+        <entry key="\forecast\Foreca\20240816.csv">
+          <value>
+            <Attribute>
+              <option name="separator" value="," />
+            </Attribute>
+          </value>
+        </entry>
+        <entry key="\forecast\Foreca\20240817.csv">
+          <value>
+            <Attribute>
+              <option name="separator" value="," />
+            </Attribute>
+          </value>
+        </entry>
+        <entry key="\forecast\Foreca\20240818.csv">
+          <value>
+            <Attribute>
+              <option name="separator" value="," />
+            </Attribute>
+          </value>
+        </entry>
         <entry key="\forecast\Gismeteo\20240808.csv">
           <value>
             <Attribute>
@@ -95,6 +137,13 @@
           </value>
         </entry>
         <entry key="\forecast\Gismeteo\20240817.csv">
+          <value>
+            <Attribute>
+              <option name="separator" value="," />
+            </Attribute>
+          </value>
+        </entry>
+        <entry key="\forecast\Gismeteo\20240818.csv">
           <value>
             <Attribute>
               <option name="separator" value="," />

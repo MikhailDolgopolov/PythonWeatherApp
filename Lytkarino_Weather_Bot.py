@@ -1,3 +1,4 @@
+import asyncio
 import os
 from datetime import datetime, timedelta, date
 import logging
@@ -262,7 +263,7 @@ async def handle_day(update: Update, context: CallbackContext) -> int:
     d = datetime.strptime(query.data, "%Y%m%d")
     day = Day(d)
     await query.edit_message_text(f"Выбрано {day.D_month}, {day.day_name}")
-    await send(query, context, d)
+    await send(update, context, d)
 
     return CHOOSING_DAY
 
@@ -272,7 +273,7 @@ async def handle_again(update: Update, context: CallbackContext):
     await query.answer()
     if query.data == "again":
         await query.message.delete()
-        return await days(query, context)
+        return await days(update, context)
 
 
 async def handle_one_button(update: Update, context: CallbackContext):
@@ -297,6 +298,7 @@ async def find_city(update: Update, context: CallbackContext):
     if cities:
         coors = [str((loc.latitude, loc.longitude)) for loc in cities]
         data = [city.raw['address'] for city in cities]
+
         names = [address.get('city') or address.get('town') or address.get('village') for address in data]
         states = [
             address.get('state') or address.get('region') or address.get('county') or address.get('state_district')
@@ -305,6 +307,7 @@ async def find_city(update: Update, context: CallbackContext):
             states = [data[i].get('region') or data[i].get('state_district') or data[i].get('county')
                       if names[i] in states[i] else states[i] for i in range(len(cities))]
         except: pass
+        states = [f"{states[i]}, {data[i]['country']}" if len(states[i])<20 else states[i] for i in range(len(cities))]
         addresses = [f"{names[i]}, {states[i]}" if states[i] else names[i] for i in range(len(cities))]
 
         context.chat_data['cities_select'] = {coors[i]: addresses[i] for i in range(len(cities))}
@@ -313,8 +316,9 @@ async def find_city(update: Update, context: CallbackContext):
 
         await context.bot.delete_message(update.message.chat_id, loading.message_id)
 
-        await update.message.reply_text("Выберите город, который имеете в виду:",
+        await context.bot.send_message(update.effective_chat.id, "Выберите город, который имеете в виду:",
                                         reply_markup=InlineKeyboardMarkup(keyboard))
+
         return CHOOSING_CITY
     else:
         await context.bot.delete_message(update.effective_chat.id, loading.message_id)
@@ -327,7 +331,7 @@ async def find_city(update: Update, context: CallbackContext):
 async def handle_city(update: Update, context: CallbackContext) -> int:
     query = update.callback_query
     await query.answer()
-    loading = await context.bot.send_message(update.effective_chat.id, "Обрбатываю ваш выбор...")
+    loading = await context.bot.send_message(update.effective_chat.id, "Обрабатываю ваш выбор...")
     full_city = context.chat_data['cities_select'][query.data]
     keyboard = [[InlineKeyboardButton(text=full_city, callback_data='None')]]
     await query.edit_message_text("Вы выбрали город", reply_markup=InlineKeyboardMarkup(keyboard))
