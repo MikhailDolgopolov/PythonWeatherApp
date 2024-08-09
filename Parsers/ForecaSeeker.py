@@ -84,7 +84,7 @@ class ForecaSeeker(SeekParser):
         # t0 = time.time()
         self.init_driver()
         self.driver.get(self.__url)
-        if self.home or super()._current_city == name:
+        if self.home or self._current_city == name:
             self.active = True
             return self
 

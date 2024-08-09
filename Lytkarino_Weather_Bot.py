@@ -68,11 +68,12 @@ async def start(update: Update, context: CallbackContext) -> None:
     await update.message.reply_text('Привет!')
     time.sleep(1)
     await update.message.reply_text(
-        "Отправьте любое сообщение со словами 'сегодня' или 'завтра', и я отправлю соответствующий прогноз.")
-    time.sleep(2)
+        "Отправьте любое сообщение со словами 'сегодня' или 'завтра', и я отправлю соответствующий прогноз.\n"
+        "Чтобы быстро выбрать другой день, отправьте 'погода' или 'прогноз'.")
+    time.sleep(3)
     await update.message.reply_text("Чтобы посмотреть погоду не в Лыткарино, просто отправьте мне название города. \n"
-                                    "Любое другое сообщение позволит выбрать другой день.")
-    time.sleep(2)
+                                    "Любое другое сообщение тоже позволит выбрать день.")
+    time.sleep(3)
     await update.message.reply_text("Вот пример моей работы:")
     time.sleep(1)
     await context.bot.send_photo(chat_id=update.message.chat_id, photo="demo.png")
@@ -87,7 +88,6 @@ async def start(update: Update, context: CallbackContext) -> None:
         "Также можно настроить, из данных каких сайтов будут показаны температура и осадки. Для этого используйте команду /settings")
 
     reset_data(context)
-    # time.sleep(1)
 
     await update.message.reply_text(current_settings(False, context))
 
@@ -125,8 +125,9 @@ async def send(thing: Union[Update, CallbackQuery], context: CallbackContext, fo
 
 
 def current_settings(new: bool, context: CallbackContext) -> str:
+    if 'city' not in context.chat_data: reset_data(context)
     t, r = context.chat_data.get("temp-sources"), context.chat_data.get("rain-sources")
-    current = f"{'Теперь' if new else 'В данный момент'} на графиках:\n\n-  температура из {', '.join(t)}\n"
+    current = f"{'Теперь' if new else 'В данный момент'} на графиках погоды ({context.chat_data['city'].split(', ')[0]}):\n\n-  температура из {', '.join(t)}\n"
     if len(r) > 0:
         current += f"-  осадки из {', '.join(r)}"
     else:
