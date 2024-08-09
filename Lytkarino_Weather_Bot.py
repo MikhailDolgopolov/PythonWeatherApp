@@ -5,7 +5,7 @@ import re
 import threading
 import time
 from pprint import pformat, pprint
-from typing import Union, Literal
+from typing import Literal
 
 import numpy as np
 import urllib3
@@ -104,13 +104,14 @@ def periodic_task():
         time.sleep(3600 * 2.5)
 
 
-async def send(thing: Union[Update, CallbackQuery], context: CallbackContext, forecast_date: datetime) -> int:
-    chat_id = thing.message.chat_id
-    initial_message = await thing.message.reply_text('Это может занять некоторое время...')
+async def send(thing: Update, context: CallbackContext, forecast_date: datetime) -> int:
+    chat_id = thing.effective_chat.id
+    initial_message = await context.bot.send_message(chat_id, text='Это может занять некоторое время...')
     if 'forecast' not in context.chat_data: reset_data(context)
 
     forecast = context.chat_data['forecast']
-    pic = render_forecast_data(forecast.fetch_forecast(forecast_date), forecast_date, city=context.chat_data.get('city', None), uid=chat_id)
+    pic = render_forecast_data(forecast.fetch_forecast(forecast_date), forecast_date,
+                               city=context.chat_data.get('city', None), uid=chat_id)
 
     await context.bot.send_photo(chat_id=chat_id, photo=pic["path"], caption=forecast.last_updated(forecast_date).strftime(
         "Данные в последний раз обновлены %d.%m.%Y, в %H:%M"))
@@ -119,7 +120,7 @@ async def send(thing: Union[Update, CallbackQuery], context: CallbackContext, fo
 
     keyboard = [[InlineKeyboardButton("Выбрать день", callback_data="again")]]
     time.sleep(1)
-    await thing.message.reply_text("прогноз на 9 дней вперед", reply_markup=InlineKeyboardMarkup(keyboard))
+    await context.bot.send_message(chat_id, text="прогноз на 9 дней вперед", reply_markup=InlineKeyboardMarkup(keyboard))
 
     return CHOOSING_DAY
 
@@ -239,7 +240,7 @@ async def handle_rain_sources(update: Update, context: CallbackContext) -> int:
         return R_SETTINGS
 
 
-async def days(thing: Union[Update, CallbackQuery], context: CallbackContext, text:str=None) -> int:
+async def days(update: Update, context: CallbackContext, text:str=None) -> int:
     dates: list[date] = [datetime.today().date() + timedelta(days=i) for i in range(10)]
     date_names = {dates[0].strftime('%Y%m%d'): f"сегодня, {dates[0].strftime('%d.%m')}",
                   dates[1].strftime('%Y%m%d'): f"завтра, {dates[1].strftime('%d.%m')}"}
@@ -251,7 +252,7 @@ async def days(thing: Union[Update, CallbackQuery], context: CallbackContext, te
     row2 = [InlineKeyboardButton(date_names[key], callback_data=key) for key in keys[5:]]
     keyboard = [row1, row2]
     if not text: text = "Выберите день: "
-    await context.bot.send_message(thing.effective_chat.id, text, reply_markup=InlineKeyboardMarkup(keyboard), )
+    await context.bot.send_message(update.effective_chat.id, text, reply_markup=InlineKeyboardMarkup(keyboard), )
     return CHOOSING_DAY
 
 
@@ -332,13 +333,13 @@ async def handle_city(update: Update, context: CallbackContext) -> int:
     await query.edit_message_text("Вы выбрали город", reply_markup=InlineKeyboardMarkup(keyboard))
     return await click_city(update, context, full_city, loading)
 
-async def click_city(thing: Union[Update, CallbackQuery], context: CallbackContext, address: str, message:Message=None) -> int:
+async def click_city(update:Update, context: CallbackContext, address: str, message:Message=None) -> int:
 
     context.chat_data['city'] = address
 
     context.chat_data['forecast'] = context.chat_data['forecast'].find_city(address)
-    if message: await context.bot.delete_message(thing.effective_chat.id, message.message_id)
-    return await days(thing, context)
+    if message: await context.bot.delete_message(update.effective_chat.id, message.message_id)
+    return await days(update, context)
 
 
 async def get_city(update: Update, context: CallbackContext):
