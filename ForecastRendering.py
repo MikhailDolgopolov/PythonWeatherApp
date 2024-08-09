@@ -53,7 +53,11 @@ def render_forecast_data(data:pd.DataFrame, date: datetime, city:str = None, sav
     precipitation_exists = prec_per_hour > 0.1 and len(rain_labels)>0
 
     if not precipitation_exists:
-        plt.ylim(bottom=bottom)
+        try:
+            plt.ylim(bottom=bottom)
+        except:
+            print("Something strange with limits")
+            bottom = np.min(data.filter(regex=f'_temperature$').mean(axis=1))
 
     if precipitation_exists:
         bottom -= 4
@@ -75,7 +79,7 @@ def render_forecast_data(data:pd.DataFrame, date: datetime, city:str = None, sav
     higher_x = np.argmax(d)
     lower_y = round(d[lower_x])
     higher_y = round(d[higher_x])
-    plt.hlines([lower_y, higher_y], [0, 0], [lower_x, higher_x], linestyle=(5, (10, 3)), color=[0.3] * 3, linewidth=1,
+    plt.hlines([lower_y, higher_y], [0, 0], [lower_x, higher_x], linestyle=(5, (10, 3)), color=[0.4] * 3, linewidth=1,
                zorder=3)
     ticks = plt.yticks()[0]
     ticks = check_and_add_numbers(ticks, [lower_y, higher_y])

@@ -76,7 +76,9 @@ class OpenmeteoSeeker(SeekParser):
         return self.__update_time
 
     def find_city(self, name: str) -> Self:
+        self.home = 'лыткарино' in name.lower()
         p = get_coordinates(name)
         self.__params['latitude'] = p[0]
         self.__params['longitude'] = p[1]
+        self._load_weather()
         return self

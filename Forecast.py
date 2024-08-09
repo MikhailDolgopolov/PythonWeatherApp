@@ -1,15 +1,12 @@
-import concurrent.futures
+
 import time
 from datetime import datetime
-from os import path, mkdir
-from typing import Union, Literal, Self
+
+from typing import Literal, Self
 
 import numpy as np
 import pandas as pd
 
-from Day import Day
-
-from MetadataController import MetadataController
 from Parsers.BaseParser import BaseParser
 from Parsers.ForecaParser import ForecaParser
 from Parsers.GismeteoParser import GismeteoParser
@@ -30,18 +27,19 @@ class Forecast:
     def all_sources(cls):
         return ["Gismeteo", "Foreca", "Openmeteo"]
 
-    def __init__(self, temp_sources=None, rainfall_sources=None, mode:Literal["Parser","Seeker"] = 'Seeker'):
-        if temp_sources is None or len(temp_sources)==0:
-            temp_sources = self.all_sources()
-        if rainfall_sources is None: rainfall_sources = []
-        self.temps = temp_sources
-        self.rainfalls = rainfall_sources
-        self.sources: list[BaseParser|SeekParser] = [globals()[f"{s}{mode}"]() for s in self.all_sources()]
-        self.city = 'Лыткарино'
+    def __init__(self, temp_sources=None, rain_sources=None, mode:Literal["Parser","Seeker"] = 'Seeker'):
+        self.parsers:list[BaseParser | SeekParser] = []
+        self.temps:list[str] = []
+        self.rains:list[str] = []
+        self.city = 'Лыткарино, Московская область'
+        if temp_sources is None: temp_sources=self.all_sources()
+        if rain_sources is None: rain_sources=self.all_sources()
+        self.change_temp_sources(temp_sources, mode)
+        self.change_rain_sources(rain_sources, mode)
 
     def fetch_forecast(self, date: datetime) -> pd.DataFrame:
         combined = pd.DataFrame({"time": np.arange(0, 24)}, dtype=float)
-        for getter in self.sources:
+        for getter in self.parsers:
             forecast = getter.get_weather(date).add_prefix(getter.name + "_", axis=1)
             combined = pd.merge(combined, forecast, how="left", left_on="time", right_on=f"{getter.name}_time").drop(
                 columns=f"{getter.name}_time")
@@ -51,7 +49,7 @@ class Forecast:
         columns = ["time", "mean_temp"]
         for s in self.temps:
             columns.append(f"{s}_temperature")
-        for s in self.rainfalls:
+        for s in self.rains:
             columns.append(f"{s}_precipitation")
 
         combined = combined[columns]
@@ -59,30 +57,61 @@ class Forecast:
         return combined
 
     def last_updated(self, date) -> datetime:
-        dates = [getter.get_last_forecast_update(date) for getter in self.sources]
-        print([s.name for s in self.sources], ":", dates)
+        dates = [getter.get_last_forecast_update(date) for getter in self.parsers]
+        # print([s.name for s in self.sources], ":", dates)
         return min(dates)
 
     def load_new_data(self, date:datetime):
-        # self.fetch_forecast(date)
-        for getter in self.sources:
+        for getter in self.parsers:
             getter.get_weather(date)
             time.sleep(0.2)
         print(datetime.now(), f"finished updating forecasts for {date.strftime('%d.%m.%Y')}")
 
     def find_city(self, city) -> Self:
         self.city = city
-        for getter in self.sources:
-            # print(f"{datetime.now()} started {getter.name}")
+        for i in range(len(self.parsers)):
+            getter = self.parsers[i]
             getter.find_city(city)
-            # print(f"{datetime.now()} finished {getter.name}")
         return self
 
-    def change_sources(self, temp_sources=None, rainfall_sources=None) -> Self:
-        if temp_sources is None or len(temp_sources)==0:
-            temp_sources = self.all_sources()
-        if rainfall_sources is None: rainfall_sources = []
-        self.temps = temp_sources
-        self.rainfalls = rainfall_sources
+    def change_temp_sources(self, new_temp_sources:list[str], mode:Literal["Parser","Seeker"] = 'Seeker') -> Self:
+        old_sources = list({*self.temps, *self.rains})
+        new_sources = list({*new_temp_sources, *self.rains})
+
+        missing_sources = [source for source in new_sources if source not in old_sources]
+        for source in missing_sources:
+            new_parser = globals()[f"{source}{mode}"]()
+            new_parser.find_city(self.city)
+            self.parsers.append(new_parser)
+
+        self.temps = new_temp_sources
+        parsers_to_remove = [p for p in self.parsers if p.name not in new_sources]
+        for odd in parsers_to_remove:
+            self.parsers.remove(odd)
+
         return self
+    
+    def change_rain_sources(self, new_rain_sources:list[str], mode:Literal["Parser", "Seeker"] = 'Seeker') -> Self:
+        old_sources = list({*self.temps, *self.rains})
+        new_sources = list({*self.temps, *new_rain_sources})
+
+        missing_sources = [source for source in new_sources if source not in old_sources]
+        for source in missing_sources:
+            new_parser = globals()[f"{source}{mode}"]()
+            new_parser.find_city(self.city)
+            self.parsers.append(new_parser)
+
+        self.rains = new_rain_sources
+        parsers_to_remove = [p for p in self.parsers if p.name not in new_sources]
+        for odd in parsers_to_remove:
+            self.parsers.remove(odd)
+
+        return self
+
+    def clear_files(self):
+        deleted = 0
+        for s in self.parsers:
+            deleted += s.clean_files()
+        if deleted>0:
+            print(f"Cleanup deleted {deleted} files")
 

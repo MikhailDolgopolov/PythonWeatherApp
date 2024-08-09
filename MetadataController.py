@@ -8,16 +8,16 @@ from helpers import read_json, write_json, delete_old_files
 
 class MetadataController:
     @classmethod
-    def due(cls)->float:
+    def due(cls) -> float:
         return 3
 
     @classmethod
-    def overdue(cls)->float:
+    def overdue(cls) -> float:
         return 6
 
     def __init__(self, path: Path):
+        self.__directory = path
         self.metadata_file = path / "metadata.json"
-        delete_old_files([path])
         self.__last_update = None
 
     def update_with_now(self, date: datetime) -> None:
@@ -41,7 +41,7 @@ class MetadataController:
             return datetime.strptime(metadata[given], '%Y-%m-%dT%H:%M:%S')
         return None
 
-    def update_is_due(self, date:datetime) -> bool:
+    def update_is_due(self, date: datetime) -> bool:
         last = self.get_last_update(date)
         if last is None:
             return True
@@ -50,7 +50,7 @@ class MetadataController:
 
         return diff > threshold
 
-    def update_is_overdue(self, date:datetime) -> bool:
+    def update_is_overdue(self, date: datetime) -> bool:
         last = self.get_last_update(date)
         if last is None:
             return True
@@ -58,3 +58,6 @@ class MetadataController:
         threshold = timedelta(hours=self.overdue())
 
         return diff > threshold
+
+    def cleaning(self) -> int:
+        return delete_old_files([self.__directory])

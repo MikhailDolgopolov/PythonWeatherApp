@@ -95,18 +95,19 @@ def distance_between_cities(point:str, target:str) ->float:
         return 20000
 
 
-def find_closest_city(target_city: str, cities: List[str]) -> str|None:
+def find_closest_city(target_city: str, cities: List[str], threshold=15) -> str | None:
     closest_city = cities[0]
     min_distance = float('inf')  # Initialize to a large number
 
     for city in cities:
-        distance = distance_between_cities(city.translate(str.maketrans('', '', string.punctuation)), target_city)
-        if distance < 15:
+        dist = distance_between_cities(city, target_city)
+        # print(f"{city:<40}, {distance}")
+        if dist < threshold:
             return city
-        if distance < min_distance:
-            min_distance = distance
+        if dist < min_distance:
+            min_distance = dist
             closest_city = city
 
     if closest_city is None: closest_city=cities[0]
-    if min_distance>15: return None
+    if min_distance>threshold: return None
     return closest_city

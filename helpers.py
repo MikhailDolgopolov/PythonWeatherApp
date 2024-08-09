@@ -60,7 +60,7 @@ def random_delay(start=0.5, end=1):
     time.sleep(random.uniform(start, end))
 
 
-def delete_old_files(folders):
+def delete_old_files(folders)->int:
     date = datetime.today() - timedelta(days=1)
     number = int(date.strftime("%Y%m%d"))
     to_delete = []
@@ -71,4 +71,4 @@ def delete_old_files(folders):
                 to_delete.append(file)
     for p in to_delete:
         os.remove(p)
-    print(f"Removed {len(to_delete)} files.")
+    return len(to_delete)

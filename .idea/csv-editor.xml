@@ -3,49 +3,35 @@
   <component name="CsvFileAttributes">
     <option name="attributeMap">
       <map>
-        <entry key="\forecast\Foreca\20240802.csv">
+        <entry key="\forecast\Foreca\20240809.csv">
           <value>
             <Attribute>
               <option name="separator" value="," />
             </Attribute>
           </value>
         </entry>
-        <entry key="\forecast\Foreca\20240804.csv">
+        <entry key="\forecast\Foreca\20240810.csv">
           <value>
             <Attribute>
               <option name="separator" value="," />
             </Attribute>
           </value>
         </entry>
-        <entry key="\forecast\Foreca\20240806.csv">
+        <entry key="\forecast\Foreca\20240811.csv">
           <value>
             <Attribute>
               <option name="separator" value="," />
             </Attribute>
           </value>
         </entry>
-        <entry key="\forecast\Gismeteo\20240802.csv">
+        <entry key="\forecast\Foreca\20240812.csv">
           <value>
             <Attribute>
               <option name="separator" value="," />
             </Attribute>
           </value>
         </entry>
-        <entry key="\forecast\Gismeteo\20240804.csv">
-          <value>
-            <Attribute>
-              <option name="separator" value="," />
-            </Attribute>
-          </value>
-        </entry>
-        <entry key="\forecast\Gismeteo\20240805.csv">
-          <value>
-            <Attribute>
-              <option name="separator" value="," />
-            </Attribute>
-          </value>
-        </entry>
-        <entry key="\forecast\Gismeteo\20240806.csv">
+        <entry key="\forecast\Gismeteo\20240808.csv">
           <value>
             <Attribute>
               <option name="separator" value="," />
@@ -88,6 +74,27 @@
           </value>
         </entry>
         <entry key="\forecast\Gismeteo\20240814.csv">
+          <value>
+            <Attribute>
+              <option name="separator" value="," />
+            </Attribute>
+          </value>
+        </entry>
+        <entry key="\forecast\Gismeteo\20240815.csv">
+          <value>
+            <Attribute>
+              <option name="separator" value="," />
+            </Attribute>
+          </value>
+        </entry>
+        <entry key="\forecast\Gismeteo\20240816.csv">
+          <value>
+            <Attribute>
+              <option name="separator" value="," />
+            </Attribute>
+          </value>
+        </entry>
+        <entry key="\forecast\Gismeteo\20240817.csv">
           <value>
             <Attribute>
               <option name="separator" value="," />

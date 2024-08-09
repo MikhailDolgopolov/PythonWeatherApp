@@ -5,7 +5,7 @@ import random
 import pandas as pd
 from selenium import webdriver
 from selenium.webdriver.chrome.webdriver import WebDriver
-from selenium.webdriver.remote.command import Command
+
 from selenium_stealth import stealth
 import pickle
 from pathlib import Path
@@ -38,6 +38,7 @@ class BaseParser:
                             "Intel(R) HD Graphics 4000",
                             "NVIDIA GeForce RTX 2080",
                             "AMD Radeon Vega 8 Graphics", ]
+        self.driver = None
         self.name = name
 
         self.forecast_path = Path(f"forecast/{name}").resolve()
@@ -79,7 +80,7 @@ class BaseParser:
         n = "driver" if self.name is None else self.name
         print(datetime.now(), f"{n} is closed")
 
-    def _parse_weather(self, date: datetime, path:str) -> pd.DataFrame:
+    def _parse_weather(self, date: datetime, path: str) -> pd.DataFrame:
         raise NotImplementedError("Subclasses should implement this method")
 
     def get_weather(self, date: datetime) -> pd.DataFrame:
@@ -89,6 +90,9 @@ class BaseParser:
         raise NotImplementedError("Subclasses should implement this method")
 
     @property
-    def empty_frame(self)->pd.DataFrame:
+    def empty_frame(self) -> pd.DataFrame:
         return pd.DataFrame({}, columns=["time", "temperature", "precipitation",
                                          "wind-speed"]).astype(float)
+
+    def clean_files(self) -> int:
+        return 0

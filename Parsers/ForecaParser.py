@@ -33,7 +33,7 @@ class ForecaParser(BaseParser):
             return None
 
     def _parse_weather(self, date, path) -> pd.DataFrame | None:
-        print("Loading Foreca...")
+        # print("Loading Foreca...")
         if self.driver_down: self.init_driver()
         soup = self._parse_date(date)
         if soup is None:

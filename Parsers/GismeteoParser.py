@@ -46,7 +46,7 @@ class GismeteoParser(BaseParser):
             return BeautifulSoup(self.driver.page_source, "lxml")
 
     def _parse_weather(self, date:datetime, path:str) -> pd.DataFrame | None:
-        print("Loading Gismeteo...")
+        # print("Loading Gismeteo...")
         if self.driver_down: self.init_driver()
         soup = self.parse_page(date)
         if soup is None:

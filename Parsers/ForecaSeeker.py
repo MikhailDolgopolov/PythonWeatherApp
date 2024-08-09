@@ -24,9 +24,10 @@ class ForecaSeeker(SeekParser):
 
     def _parse_date(self, date) -> BeautifulSoup | None:
         detail = date.strftime("%Y%m%d")
-        url = self.driver.current_url + "?details=" + detail
-        try:
 
+        try:
+            if self.driver_down: raise RuntimeError(f"{self.name} driver is down")
+            url = self.driver.current_url + "?details=" + detail
             self.driver.get(url)
             random_delay()
             source = self.driver.page_source
@@ -44,6 +45,7 @@ class ForecaSeeker(SeekParser):
         soup = self._parse_date(date)
         if soup is None:
             print("Couldn't parse Foreca")
+            self.active = False
             return None
         self.metadata.update_with_now(date)
         table = soup.find("div", class_="hourContainer")
@@ -77,22 +79,21 @@ class ForecaSeeker(SeekParser):
     def get_last_forecast_update(self, date: datetime) -> datetime:
         return self.metadata.get_last_update(date, self.home)
 
-    def find_city(self, name:str) -> Self:
+    def find_city(self, name: str) -> Self:
         self.home = "лыткарино" in name.lower()
         # t0 = time.time()
         self.init_driver()
-        if self.home:
-            self.driver.get("https://www.foreca.ru/Russia/Lytkarino")
+        self.driver.get(self.__url)
+        if self.home or super()._current_city == name:
             self.active = True
             return self
-        self.driver.get(self.__url)
 
-        #/html/body/div[2]/div/header/div[1]/div/div/form/input[1]
+        super().find_city(name)
 
         try:
             random_delay(0.1, 0.5)
             try:
-                #//*[@id="qc-cmp2-ui"]/div[2]/div/button[2]
+                # //*[@id="qc-cmp2-ui"]/div[2]/div/button[2]
                 button = self.driver.find_element(By.XPATH, "//*[@id='qc-cmp2-ui']/div[2]/div/button[2]")
                 button.click()
                 random_delay(0.1, 0.5)
@@ -101,9 +102,9 @@ class ForecaSeeker(SeekParser):
                 # print("No button")
                 pass
             random_delay(0.1, 0.5)
-            #/html/body/div[3]/div/header/div[1]/div/div/form/input[1]
-            #body > div.page-wrap > div > header > div.search-bar-inner > div > div > form > input[type=text]:nth-child(1)
-            #div.search-bar-inner form>input[type=text]
+            # /html/body/div[3]/div/header/div[1]/div/div/form/input[1]
+            # body > div.page-wrap > div > header > div.search-bar-inner > div > div > form > input[type=text]:nth-child(1)
+            # div.search-bar-inner form>input[type=text]
             # search = self.driver.find_element(By.XPATH, '/html/body/div[2]/div/header/div[1]/div/div/form/input[1]')
             search = self.driver.find_element(By.CSS_SELECTOR, "div.search-bar-inner form>input[type=text]")
             # print(search)
@@ -125,8 +126,11 @@ class ForecaSeeker(SeekParser):
             except:
                 answer = self.driver.find_elements(By.CSS_SELECTOR, ".result-row")[0]
             answer.click()
-            random_delay(0,1)
+            random_delay(0, 1)
             # t1 = time.time()
             return self
         except:
             raise RuntimeError(f"Something went wrong looking up {name}")
+
+    def clean_files(self)->int:
+        return self.metadata.cleaning()

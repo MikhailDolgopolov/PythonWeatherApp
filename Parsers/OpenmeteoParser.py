@@ -24,7 +24,7 @@ class OpenmeteoParser(BaseParser):
     def __init__(self):
         super().__init__(name="Openmeteo")
         self.__url = "https://api.open-meteo.com/v1/forecast"
-        print("Loading OpenMeteo...")
+        # print("Loading OpenMeteo...")
         p = my_point()
         self.__params = {
             "latitude": p[0],

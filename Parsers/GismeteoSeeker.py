@@ -21,9 +21,12 @@ class GismeteoSeeker(SeekParser):
         super().__init__(name="Gismeteo", headless=headless)
         self.metadata = MetadataController(self.forecast_path)
 
-    def parse_page(self, date:datetime) -> BeautifulSoup | None:
+    def _parse_page(self, date:datetime) -> BeautifulSoup | None:
         today = datetime.datetime.today()
-        random_delay(4, 8)
+        if self.driver_down:
+            print(f"{self.name} driver is down")
+            return None
+        random_delay()
         diff = (date.date() - today.date()).days
         if diff == 0:
             try:
@@ -49,7 +52,7 @@ class GismeteoSeeker(SeekParser):
             self.init_driver()
             self.driver.get(self.__url)
 
-        soup = self.parse_page(date)
+        soup = self._parse_page(date)
         if soup is None:
             print("Couldn't parse Gismeteo")
             super().close()
@@ -86,13 +89,12 @@ class GismeteoSeeker(SeekParser):
             if file_existed:
                 loaded = pd.read_csv(path, dtype=float)
 
-            if loaded is None:
-                loaded = self.empty_frame
-
         else:
             loaded = self._parse_weather(date, "")
 
         if not self.active: loaded = self.empty_frame
+        if loaded is None:
+            loaded = self.empty_frame
         loaded = loaded.set_index('time').reindex(np.arange(0, 24)).reset_index(drop=False).interpolate()
         return loaded
 
@@ -101,22 +103,30 @@ class GismeteoSeeker(SeekParser):
 
     def find_city(self, name:str) -> Self:
         self.home = "лыткарино" in name.lower()
-        # print(name.lower())
+
         self.init_driver()
         self.driver.get(self.__url)
-        if self.home:
+        if self.home or super()._current_city == name:
             self.active = True
             return self
+        super().find_city(name)
 
         random_delay()
 
         search = self.driver.find_element(By.CSS_SELECTOR, '.search-form input[type=text]')
         search.send_keys(name)
-        random_delay()
+
         try:
             try:
-                answers = self.driver.find_elements(By.CSS_SELECTOR, ".search-item span")[:4]
-                options = [a.text.replace('\n', ' ').split(' (')[0] for a in answers]
+                random_delay(3, 4)
+                answers_main = self.driver.find_elements(By.CSS_SELECTOR, ".search-item")[:2]
+                random_delay(0,1)
+                answers_info = self.driver.find_elements(By.CSS_SELECTOR, ".search-item span")[:2]
+
+                names = [a.text.split()[0] for a in answers_main]
+                regions = [a.text.split(" (")[0].split(', ',maxsplit=1)[-1].replace('\n', ' ') for a in answers_info]
+
+                options = [f'{regions[i]}, {names[i]}'.replace('\n', ' ') for i in range(len(answers_main))]
                 best = find_closest_city(name, options)
                 random_delay()
                 if best is None:
@@ -127,9 +137,12 @@ class GismeteoSeeker(SeekParser):
                 answer = self.driver.find_elements(By.CSS_SELECTOR, ".search-item")[options.index(best)]
             except:
                 answer = self.driver.find_elements(By.CSS_SELECTOR, ".search-item")[0]
-            print("answer: ", answer.text)
             answer.click()
+            random_delay()
             return self
         except:
             raise RuntimeError(f"Something went wrong looking up {name}")
+
+    def clean_files(self) -> int:
+        return self.metadata.cleaning()
 

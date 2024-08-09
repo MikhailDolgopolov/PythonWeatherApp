@@ -6,8 +6,9 @@ from Parsers.BaseParser import BaseParser
 class SeekParser(BaseParser):
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
-        self.home=True
         self.active = True
+        self.home = True
+        self._current_city="Лыткарино, Московская область"
 
-    def find_city(self, name:str) -> Self:
-        raise NotImplementedError("It's up to child classes!")
+    def find_city(self, name:str):
+        self._current_city = name

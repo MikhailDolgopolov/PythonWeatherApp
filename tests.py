@@ -12,40 +12,40 @@ from Parsers.GismeteoSeeker import GismeteoSeeker
 from helpers import random_delay
 
 
-input_string = "Лыткарино"
-cities = get_closest_city_matches(input_string)
+# input_string = "Воркута"
+
+# cities = get_closest_city_matches(input_string)
 forecast = Forecast(mode="Seeker")
-if not cities:
-    print("Not found ", input_string)
-else:
-    data = [city.raw['address'] for city in cities]
-    pprint(data[0])
-    # print('city' in data[0])
-    names = [address.get('city') or address.get('town') or address.get('village') for address in data]
-    states = [address.get('state') or address.get('region') or address.get('county') or address.get('state_district')
-              for address in data]
-    states = [data[i].get('region') or data[i].get('state_district') or data[i].get('county')
-              if names[i] in states[i] else states[i] for i in range(len(cities))]
-    addresses = [f"{names[i]}, {states[i]}" if states[i] else names[i] for i in range(len(cities))]
-    print(addresses)
+for i in range(10, 14):
+    d = datetime(2024, 8, i)
+    c=0
+    while c<3:
+        try:
+            data = forecast.fetch_forecast(d)
+            render_forecast_data(data, d, "Лыткарино, Московская область", save=True)
+            break
+        except:
+            random_delay(1,5)
+        finally:
+            c+=1
+
+# if not cities:
+     # print("Not found ", input_string)
+# else:
+#     data = [city.raw['address'] for city in cities]
+#     pprint(data[0])
+#     # print('city' in data[0])
+#     names = [address.get('city') or address.get('town') or address.get('village') for address in data]
+#     states = [address.get('state') or address.get('region') or address.get('county') or address.get('state_district')
+#               for address in data]
+#     states = [data[i].get('region') or data[i].get('state_district') or data[i].get('county')
+#               if names[i] in states[i] else states[i] for i in range(len(cities))]
+#     addresses = [f"{names[i]}, {states[i]}" if states[i] else names[i] for i in range(len(cities))]
+#     print(addresses)
 #
 #     city = addresses[0]
-#     d = datetime.today()+timedelta(days=7)
-#     data = forecast.load_new_data(date=d)
-#     print(data)
-#     render_forecast_data(data, d, city.split(", ")[0], save=False, show=True)
-
-
-# def periodic_task():
-#     print("Auto-updates started")
-#     forecast = Forecast(mode="Seeker")
-#     while True:
-#         for i in range(10):
-#             forecast.load_new_data(datetime.today() + timedelta(days=i))
-#             random_delay(3, 5)
-#         time.sleep(3600 * 2.5)
-#
-#
-# threading.Thread(target=periodic_task).start()
-
-ForecaSeeker(headless=False).get_weather(datetime(2024, 8, 13))
+#     d = datetime.today()+timedelta(days=1)
+#     foreca = ForecaSeeker(headless=False).find_city(city).get_weather(d)
+#     # data = forecast.load_new_data(date=d)
+#     print(foreca)
+#     # render_forecast_data(data, d, city.split(", ")[0], save=False, show=True)
