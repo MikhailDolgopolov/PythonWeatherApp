@@ -50,6 +50,18 @@ def get_closest_city_matches(input_name, max_results=3) -> list[Location]:
         if locations is None:
             return []
 
+        seen = set()
+        unique_locations = []
+
+        for location in locations:
+            # Use (latitude, longitude) as a unique identifier
+            identifier = (round(location.latitude,1), round(location.longitude, 1))
+
+            if identifier not in seen:
+                seen.add(identifier)
+                unique_locations.append(location)
+
+        locations = unique_locations
         names = [loc.address.split(',')[0].lower() for loc in locations]
         ds = {locations[i].address: Levenshtein.distance(input_name.lower(), names[i]) for i in range(len(locations))}
 

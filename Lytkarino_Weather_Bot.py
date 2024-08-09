@@ -127,7 +127,7 @@ async def send(thing: Union[Update, CallbackQuery], context: CallbackContext, fo
 def current_settings(new: bool, context: CallbackContext) -> str:
     if 'city' not in context.chat_data: reset_data(context)
     t, r = context.chat_data.get("temp-sources"), context.chat_data.get("rain-sources")
-    current = f"{'Теперь' if new else 'В данный момент'} на графиках погоды ({context.chat_data['city'].split(', ')[0]}):\n\n-  температура из {', '.join(t)}\n"
+    current = f"{'Теперь' if new else 'В данный момент'} на графиках погоды:\n\n-  температура из {', '.join(t)}\n"
     if len(r) > 0:
         current += f"-  осадки из {', '.join(r)}"
     else:
@@ -239,7 +239,7 @@ async def handle_rain_sources(update: Update, context: CallbackContext) -> int:
         return R_SETTINGS
 
 
-async def days(thing: Union[Update, CallbackQuery], context: CallbackContext) -> int:
+async def days(thing: Union[Update, CallbackQuery], context: CallbackContext, text:str=None) -> int:
     dates: list[date] = [datetime.today().date() + timedelta(days=i) for i in range(10)]
     date_names = {dates[0].strftime('%Y%m%d'): f"сегодня, {dates[0].strftime('%d.%m')}",
                   dates[1].strftime('%Y%m%d'): f"завтра, {dates[1].strftime('%d.%m')}"}
@@ -250,7 +250,8 @@ async def days(thing: Union[Update, CallbackQuery], context: CallbackContext) ->
     row1 = [InlineKeyboardButton(date_names[key], callback_data=key) for key in keys[:5]]
     row2 = [InlineKeyboardButton(date_names[key], callback_data=key) for key in keys[5:]]
     keyboard = [row1, row2]
-    await context.bot.send_message(thing.effective_chat.id, "Выберите день: ", reply_markup=InlineKeyboardMarkup(keyboard), )
+    if not text: text = "Выберите день: "
+    await context.bot.send_message(thing.effective_chat.id, text, reply_markup=InlineKeyboardMarkup(keyboard), )
     return CHOOSING_DAY
 
 
@@ -299,8 +300,10 @@ async def find_city(update: Update, context: CallbackContext):
         states = [
             address.get('state') or address.get('region') or address.get('county') or address.get('state_district')
             for address in data]
-        states = [data[i].get('region') or data[i].get('state_district') or data[i].get('county')
-                  if names[i] in states[i] else states[i] for i in range(len(cities))]
+        try:
+            states = [data[i].get('region') or data[i].get('state_district') or data[i].get('county')
+                      if names[i] in states[i] else states[i] for i in range(len(cities))]
+        except: pass
         addresses = [f"{names[i]}, {states[i]}" if states[i] else names[i] for i in range(len(cities))]
 
         context.chat_data['cities_select'] = {coors[i]: addresses[i] for i in range(len(cities))}
@@ -314,7 +317,10 @@ async def find_city(update: Update, context: CallbackContext):
         return CHOOSING_CITY
     else:
         await context.bot.delete_message(update.effective_chat.id, loading.message_id)
-        return await days(update, context)
+        await context.bot.send_message(update.effective_chat.id,
+                                       text=f"Не получилось распознать '{update.message.text}' как город.")
+        time.sleep(0.5)
+        return await days(update, context, text=f"Выберите день для прогноза в {context.chat_data['city'].split(', ')[0]}:")
 
 
 async def handle_city(update: Update, context: CallbackContext) -> int:
