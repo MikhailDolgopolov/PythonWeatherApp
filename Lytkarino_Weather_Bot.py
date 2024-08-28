@@ -108,7 +108,8 @@ def periodic_task():
 async def send(thing: Update, context: CallbackContext, forecast_date: datetime) -> int:
     chat_id = thing.effective_chat.id
     initial_message = await context.bot.send_message(chat_id, text='Это может занять некоторое время...')
-    if 'forecast' not in context.chat_data: reset_data(context)
+    if 'city' not in context.chat_data or 'forecast' not in context.chat_data:
+        reset_data(context)
 
     forecast = context.chat_data['forecast']
     pic = render_forecast_data(forecast.fetch_forecast(forecast_date), forecast_date,
@@ -127,7 +128,8 @@ async def send(thing: Update, context: CallbackContext, forecast_date: datetime)
 
 
 def current_settings(new: bool, context: CallbackContext) -> str:
-    if 'city' not in context.chat_data: reset_data(context)
+    if 'city' not in context.chat_data or 'forecast' not in context.chat_data:
+        reset_data(context)
     t, r = context.chat_data.get("temp-sources"), context.chat_data.get("rain-sources")
     current = f"{'Теперь' if new else 'В данный момент'} на графиках погоды:\n\n-  температура из {', '.join(t)}\n"
     if len(r) > 0:
@@ -299,7 +301,8 @@ async def find_city(update: Update, context: CallbackContext):
         coors = [str((loc.latitude, loc.longitude)) for loc in cities]
         data = [city.raw['address'] for city in cities]
 
-        names = [address.get('city') or address.get('town') or address.get('village') for address in data]
+        names = [address.get('city') or address.get('town') or address.get('village')
+                 or address.get('neighbourhood') or address.get('suburb') for address in data]
         states = [
             address.get('state') or address.get('region') or address.get('county') or address.get('state_district')
             for address in data]
@@ -329,7 +332,8 @@ async def find_city(update: Update, context: CallbackContext):
 
 
 async def handle_city(update: Update, context: CallbackContext) -> int:
-    if 'city' not in context.chat_data: reset_data(context)
+    if 'city' not in context.chat_data or 'forecast' not in context.chat_data:
+        reset_data(context)
     query = update.callback_query
     await query.answer()
     loading = await context.bot.send_message(update.effective_chat.id, "Обрабатываю ваш выбор...")
@@ -339,7 +343,8 @@ async def handle_city(update: Update, context: CallbackContext) -> int:
     return await click_city(update, context, full_city, loading)
 
 async def click_city(update:Update, context: CallbackContext, address: str, message:Message=None) -> int:
-    if 'city' not in context.chat_data: reset_data(context)
+    if 'city' not in context.chat_data or 'forecast' not in context.chat_data:
+        reset_data(context)
     context.chat_data['city'] = address
 
     context.chat_data['forecast'] = context.chat_data['forecast'].find_city(address)
