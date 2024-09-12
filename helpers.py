@@ -72,3 +72,8 @@ def delete_old_files(folders)->int:
     for p in to_delete:
         os.remove(p)
     return len(to_delete)
+
+
+def is_cyrillic(text):
+    return bool(re.search(r'[А-Яа-я]', text))
+

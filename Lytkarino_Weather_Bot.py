@@ -394,7 +394,7 @@ def main() -> None:
     )
 
     application.add_handler(settings_handler)
-    entry_for_days = [MessageHandler(filters.TEXT & ~filters.COMMAND, find_city),
+    entry_for_days = [MessageHandler(filters.TEXT & ~filters.COMMAND & filters.Regex(r'^.{3,}$'), find_city),
                       CallbackQueryHandler(handle_again, pattern=r'again')]
     days_handler = ConversationHandler(
         entry_points=entry_for_days,
