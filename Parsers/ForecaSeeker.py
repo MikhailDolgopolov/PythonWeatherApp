@@ -66,7 +66,7 @@ class ForecaSeeker(SeekParser):
         if not os.path.isfile(path) and date.date == datetime.today().date():
             if not self.active: return self.empty_frame
             return pd.DataFrame({"time": [], "temperature": [], "precipitation": [], "wind-speed": []}).astype(float)
-        if self.metadata.update_is_overdue(date):
+        if self.metadata.update_is_overdue(date) or not os.path.isfile(path):
             if not self.active: return self.empty_frame
             return self._parse_weather(date, path)
         data = pd.read_csv(path, dtype=float)

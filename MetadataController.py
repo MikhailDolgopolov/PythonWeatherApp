@@ -32,14 +32,14 @@ class MetadataController:
         write_json(new_meta, str(self.metadata_file))
         # print(f"Metadata updated: {key}:  {newstr}")
 
-    def get_last_update(self, date: datetime, home=True) -> Union[datetime, None]:
+    def get_last_update(self, date: datetime, home=True) -> datetime:
         if not home:
             return self.__last_update
         given: str = date.strftime("%Y-%m-%d")
         metadata = read_json(self.metadata_file)
         if given in metadata:
             return datetime.strptime(metadata[given], '%Y-%m-%dT%H:%M:%S')
-        return None
+        return datetime.now()
 
     def update_is_due(self, date: datetime) -> bool:
         last = self.get_last_update(date)

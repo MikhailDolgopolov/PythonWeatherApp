@@ -12,7 +12,6 @@ from Parsers.GismeteoSeeker import GismeteoSeeker
 from helpers import random_delay
 
 
-input_string = "Адмиралтейский район"
+p = GismeteoParser(headless=False)
 
-cities = get_closest_city_matches(input_string)
-pprint(cities)
+p.get_weather(datetime.today())

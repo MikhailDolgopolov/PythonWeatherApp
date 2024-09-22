@@ -34,6 +34,7 @@ filterwarnings(action="ignore", message=r".*CallbackQueryHandler", category=PTBU
 logging.basicConfig(format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
                     level=logging.INFO)
 logging.getLogger("httpx").setLevel(logging.WARNING)
+logging.getLogger("WDM").setLevel(logging.WARNING)
 urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
 logging.getLogger("urllib3").setLevel(logging.ERROR)
 
@@ -49,7 +50,7 @@ STOP_WORD = "OK"
 EMPTY = "[ пусто ]"
 
 sites = Forecast.all_sources()
-default_sources = ["Gismeteo", "Openmeteo"]
+default_sources = ["Foreca", "Openmeteo"]
 
 
 def source_keyboard():
@@ -98,7 +99,7 @@ def periodic_task():
     forecast = Forecast()
     while True:
         forecast.clear_files()
-        for i in range(10):
+        for i in range(5):
             forecast.load_new_data(datetime.today() + timedelta(days=i))
             # random_delay()
         print('\n\n')

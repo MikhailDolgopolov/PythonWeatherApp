@@ -40,7 +40,9 @@ class Forecast:
     def fetch_forecast(self, date: datetime) -> pd.DataFrame:
         combined = pd.DataFrame({"time": np.arange(0, 24)}, dtype=float)
         for getter in self.parsers:
-            forecast = getter.get_weather(date).add_prefix(getter.name + "_", axis=1)
+            forecast = getter.get_weather(date)
+            print(forecast)
+            forecast = forecast.add_prefix(getter.name + "_", axis=1)
             combined = pd.merge(combined, forecast, how="left", left_on="time", right_on=f"{getter.name}_time").drop(
                 columns=f"{getter.name}_time")
 
@@ -58,7 +60,7 @@ class Forecast:
 
     def last_updated(self, date) -> datetime:
         dates = [getter.get_last_forecast_update(date) for getter in self.parsers]
-        # print([s.name for s in self.sources], ":", dates)
+        #print([s.name for s in self.parsers], ":", dates)
         return min(dates)
 
     def load_new_data(self, date:datetime):
@@ -114,4 +116,8 @@ class Forecast:
             deleted += s.clean_files()
         if deleted>0:
             print(f"Cleanup deleted {deleted} files")
+
+
+    def exact_point(self, lat, lon):
+
 

@@ -1,4 +1,5 @@
 import datetime
+import os.path
 import threading
 
 import numpy as np
@@ -12,9 +13,9 @@ from helpers import random_delay
 
 
 class GismeteoParser(BaseParser):
-    def __init__(self):
+    def __init__(self, headless=True):
         self.__url = "https://www.gismeteo.ru/weather-lytkarino-12640/"
-        super().__init__(name="Gismeteo")
+        super().__init__(name="Gismeteo", headless=headless)
         self.metadata = MetadataController(self.forecast_path)
 
     def parse_page(self, date:datetime) -> BeautifulSoup | None:
@@ -74,7 +75,7 @@ class GismeteoParser(BaseParser):
 
     def get_weather(self, date:datetime) -> pd.DataFrame:
         path = f"{self.forecast_path}/{date.strftime('%Y%m%d')}.csv"
-        if self.metadata.update_is_overdue(date):
+        if self.metadata.update_is_overdue(date) or not os.path.isfile(path):
             loaded = self._parse_weather(date, path)
         else:
             loaded = pd.read_csv(path, dtype=float)

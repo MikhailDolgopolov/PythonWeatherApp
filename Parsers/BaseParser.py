@@ -5,6 +5,9 @@ import random
 import pandas as pd
 from selenium import webdriver
 from selenium.webdriver.chrome.webdriver import WebDriver
+from selenium.webdriver.chrome.service import Service
+from webdriver_manager.chrome import ChromeDriverManager
+from webdriver_manager.core.os_manager import ChromeType
 
 from selenium_stealth import stealth
 import pickle
@@ -22,6 +25,7 @@ class BaseParser:
         self.__options.add_argument("disable-infobars")
         self.__options.add_argument("--disable-extensions")
         self.__options.add_argument("--profile-directory=Default")
+        self.__options.add_argument("--disable-blink-features=DefaultAutomationControlled")
         # self.__options.add_argument("--incognito")
         self.__options.add_argument("--disable-plugins-discovery")
 
@@ -47,7 +51,8 @@ class BaseParser:
     def init_driver(self):
         # print(datetime.now(), "Started driver", self.name)
         self.__options.add_argument(f"user-agent={random.choice(self.__user_agents)}")
-        self.driver: WebDriver = webdriver.Chrome(self.__options)
+        driver_path = ChromeDriverManager().install()
+        self.driver: WebDriver = webdriver.Chrome(service=Service(driver_path), options=self.__options)
         stealth(self.driver,
                 languages=["ru-Ru", "ru"],
                 vendor="Google Inc.",
@@ -84,7 +89,7 @@ class BaseParser:
         raise NotImplementedError("Subclasses should implement this method")
 
     def get_weather(self, date: datetime) -> pd.DataFrame:
-        raise NotImplementedError("Subclasses should implement this method")
+        return self.empty_frame
 
     def get_last_forecast_update(self, date: datetime) -> datetime:
         raise NotImplementedError("Subclasses should implement this method")
