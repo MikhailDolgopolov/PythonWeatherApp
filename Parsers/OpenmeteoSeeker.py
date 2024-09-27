@@ -72,6 +72,18 @@ class OpenmeteoSeeker(SeekParser):
 
         return data
 
+    def set_params(self, p=None):
+        if not p: p = my_point()
+        self.__params = {
+            "latitude": p[0],
+            "longitude": p[1],
+            "hourly": ["temperature_2m", "precipitation", "wind_speed_10m"],
+            "wind_speed_unit": "ms",
+            "timezone": "Europe/Moscow",
+            "forecast_days": 10
+        }
+        self._load_weather()
+
     def get_last_forecast_update(self, date) -> datetime:
         return self.__update_time
 

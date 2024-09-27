@@ -25,15 +25,8 @@ class OpenmeteoParser(BaseParser):
         super().__init__(name="Openmeteo")
         self.__url = "https://api.open-meteo.com/v1/forecast"
         # print("Loading OpenMeteo...")
-        p = my_point()
-        self.__params = {
-            "latitude": p[0],
-            "longitude": p[1],
-            "hourly": ["temperature_2m", "precipitation", "wind_speed_10m"],
-            "wind_speed_unit": "ms",
-            "timezone": "Europe/Moscow",
-            "forecast_days": 8
-        }
+        self.set_params()
+
         response = openmeteo.weather_api(self.__url, params=self.__params)[0]
         hourly = response.Hourly()
         hourly_temperature_2m = hourly.Variables(0).ValuesAsNumpy()
@@ -53,6 +46,17 @@ class OpenmeteoParser(BaseParser):
         df = df.rename({"temperature_2m":"temperature", "wind_speed_10m":"wind-speed"}, axis=1)
         self.__full_dataframe = df
         self.__update_time = datetime.now()
+
+    def set_params(self, p=None):
+        if not p: p = my_point()
+        self.__params = {
+            "latitude": p[0],
+            "longitude": p[1],
+            "hourly": ["temperature_2m", "precipitation", "wind_speed_10m"],
+            "wind_speed_unit": "ms",
+            "timezone": "Europe/Moscow",
+            "forecast_days": 8
+        }
 
     def get_weather(self, date:datetime) -> pd.DataFrame:
         start_of_day = pd.Timestamp(date.date()).tz_localize('Europe/Moscow')

@@ -7,6 +7,12 @@ from typing import Literal, Self
 import numpy as np
 import pandas as pd
 
+from Geography.Geography import get_coordinates
+from geopy.distance import geodesic
+
+
+
+
 from Parsers.BaseParser import BaseParser
 from Parsers.ForecaParser import ForecaParser
 from Parsers.GismeteoParser import GismeteoParser
@@ -31,17 +37,20 @@ class Forecast:
         self.parsers:list[BaseParser | SeekParser] = []
         self.temps:list[str] = []
         self.rains:list[str] = []
+        print("Forecast init")
         self.city = 'Лыткарино, Московская область'
+        self.city_coords = get_coordinates(self.city)
         if temp_sources is None: temp_sources=self.all_sources()
         if rain_sources is None: rain_sources=self.all_sources()
         self.change_temp_sources(temp_sources, mode)
         self.change_rain_sources(rain_sources, mode)
+        print("Forecast object is ready")
 
     def fetch_forecast(self, date: datetime) -> pd.DataFrame:
         combined = pd.DataFrame({"time": np.arange(0, 24)}, dtype=float)
         for getter in self.parsers:
             forecast = getter.get_weather(date)
-            print(forecast)
+            # print(forecast)
             forecast = forecast.add_prefix(getter.name + "_", axis=1)
             combined = pd.merge(combined, forecast, how="left", left_on="time", right_on=f"{getter.name}_time").drop(
                 columns=f"{getter.name}_time")
@@ -69,8 +78,9 @@ class Forecast:
             time.sleep(0.2)
         print(datetime.now(), f"finished updating forecasts for {date.strftime('%d.%m.%Y')}")
 
-    def find_city(self, city) -> Self:
+    def find_city(self, city:str) -> Self:
         self.city = city
+        self.city_coords = get_coordinates(city)
         for i in range(len(self.parsers)):
             getter = self.parsers[i]
             getter.find_city(city)
@@ -118,6 +128,27 @@ class Forecast:
             print(f"Cleanup deleted {deleted} files")
 
 
-    def exact_point(self, lat, lon):
+    def point_info(self, point_tuple):
+        point_tuple = tuple(float(num) for num in point_tuple.split(","))
+        for parser in self.parsers:
+            if parser.name=="Openmeteo":
+                # print(f"{self.city}: {self.city_coords}")
+                # print(f"point: {point_tuple}")
+                d = geodesic(self.city_coords, point_tuple).kilometers
+                # print(f"dist: {d} km")
+                return round(d,1)
+        else:
+            return "У вас не выбрано Openmeteo для прогноза по координатам"
+
+    def set_openmeteo_point(self, point_tuple):
+
+        point_tuple = tuple(float(num) for num in point_tuple.split(","))
+        for parser in self.parsers:
+            if parser.name == "Openmeteo":
+                parser: OpenmeteoParser = parser
+                parser.set_params(point_tuple)
+        else:
+            return "У вас не выбрано Openmeteo для прогноза по координатам"
+
 
 

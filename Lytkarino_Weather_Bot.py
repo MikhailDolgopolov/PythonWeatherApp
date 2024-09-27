@@ -23,6 +23,7 @@ from Day import Day
 from Forecast import Forecast
 from ForecastRendering import render_forecast_data
 from Geography.Geography import get_closest_city_matches
+from geopy.distance import geodesic
 from helpers import read_json, random_delay
 
 from warnings import filterwarnings
@@ -50,7 +51,9 @@ STOP_WORD = "OK"
 EMPTY = "[ пусто ]"
 
 sites = Forecast.all_sources()
-default_sources = ["Foreca", "Openmeteo"]
+default_sources = [
+    # "Foreca",
+    "Openmeteo"]
 
 
 def source_keyboard():
@@ -358,6 +361,33 @@ async def get_city(update: Update, context: CallbackContext):
     city = context.chat_data['city']
     await update.message.reply_text(f"В данный момент выбран город {city}")
 
+async def ask_point(update: Update, context: CallbackContext):
+    await update.message.reply_text("Точка получена. Подождите...")
+
+    if 'forecast' not in context.chat_data: reset_data(context)
+    forecast:Forecast = context.chat_data['forecast']
+    coords = update.message.text
+    arr = coords.split(",")
+    point = forecast.point_info(coords)
+    # await update.message.reply_text(f"got info {point}")
+    if isinstance(point, str): await context.bot.send_message(update.effective_chat.id, f"{point}")
+    if isinstance(point, float):
+        keyboard = [[InlineKeyboardButton(text=STOP_WORD, callback_data=coords), InlineKeyboardButton(text="Отменить", callback_data="cancel")]]
+        await context.bot.send_message(update.effective_chat.id, f"Расстояние от точки до выбранного сейчас города {point} км. Утвердить точку?",
+                                       reply_markup=InlineKeyboardMarkup(keyboard))
+
+    # await context.bot.send_message(update.effective_chat.id, f"Looking for {coords}")
+
+
+async def set_point(update:Update, context:CallbackContext):
+    query = update.callback_query
+    await query.answer()
+    if query.data == "cancel":
+        return
+    await context.bot.send_message(update.effective_chat.id, f"Подождите...")
+    context.chat_data["forecast"].set_openmeteo_point(query.data)
+    await context.bot.send_message(update.effective_chat.id, f"Точка установлена")
+
 
 def main() -> None:
     persistence = PicklePersistence(filepath='bot_persitence', update_interval=5)
@@ -366,6 +396,9 @@ def main() -> None:
     application.add_handler(CommandHandler("start", start))
     application.add_handler(MessageHandler(filters.Regex(re.compile('город', re.IGNORECASE)), get_city))
     application.add_handler(MessageHandler(filters.Regex(re.compile('прогноз|погода', re.IGNORECASE)), days))
+    coords_regex = r"-?\d{1,2}\.\d+,\s+-?\d{1,2}\.\d+"
+    application.add_handler(MessageHandler(filters.Regex(coords_regex), ask_point))
+    application.add_handler(CallbackQueryHandler(set_point, pattern="|".join([coords_regex, "cancel"])))
 
     application.add_handler(
         MessageHandler(filters.Regex(re.compile(r'^(?!.*завтра)сегодня(?!.*завтра).*$', re.IGNORECASE)),
@@ -409,7 +442,7 @@ def main() -> None:
 
     application.add_handler(days_handler)
 
-    application.add_handler(CommandHandler("debug", debug))
+    # application.add_handler(CommandHandler("debug", debug))
     # Run the bot until the user presses Ctrl-C
     application.run_polling(allowed_updates=Update.ALL_TYPES)
 
