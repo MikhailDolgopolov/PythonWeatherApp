@@ -17,12 +17,8 @@ from helpers import random_delay
 #
 # p.get_weather(datetime.today())
 
-loc = 'Лыткарино, Московская область'
-city_coords = get_coordinates(loc)
-
-print(city_coords)
+loc = 'Москва'
 
 s = "55.6,  38"
 p = tuple(float(num) for num in s.split(", "))
-d = geodesic(city_coords, (p)).kilometers
-print(d)
+get_closest_city_matches(loc)

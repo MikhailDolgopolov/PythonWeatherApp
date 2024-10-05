@@ -37,14 +37,14 @@ class Forecast:
         self.parsers:list[BaseParser | SeekParser] = []
         self.temps:list[str] = []
         self.rains:list[str] = []
-        print("Forecast init")
+        # print("Forecast init")
         self.city = 'Лыткарино, Московская область'
         self.city_coords = get_coordinates(self.city)
         if temp_sources is None: temp_sources=self.all_sources()
         if rain_sources is None: rain_sources=self.all_sources()
         self.change_temp_sources(temp_sources, mode)
         self.change_rain_sources(rain_sources, mode)
-        print("Forecast object is ready")
+        # print("Forecast object is ready")
 
     def fetch_forecast(self, date: datetime) -> pd.DataFrame:
         combined = pd.DataFrame({"time": np.arange(0, 24)}, dtype=float)

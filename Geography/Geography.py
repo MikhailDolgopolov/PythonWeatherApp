@@ -50,11 +50,11 @@ def get_closest_city_matches(input_name, max_results=4) -> list[Location]:
                                        exactly_one=False, limit=6)
         if locations is None:
             return []
-        # pprint(locations)
+        pprint(locations)
         # print()
         # [print(loc.raw['type']) for loc in locations]
         locations = [loc for loc in locations if loc.raw['type'] in
-                     ['suburb', 'neighbourhood', 'city, village', 'town', 'residential', 'administrative']]
+                     ['suburb', 'neighbourhood', 'city', 'village', 'town', 'residential', 'administrative']]
         seen = set()
         unique_locations = []
 
@@ -67,6 +67,7 @@ def get_closest_city_matches(input_name, max_results=4) -> list[Location]:
                 unique_locations.append(location)
 
         locations:list[Location] = unique_locations
+        pprint(locations)
         names = [loc.address.split(',')[0].lower() for loc in locations]
         ds = {locations[i].address: Levenshtein.distance(input_name.lower(), names[i]) for i in range(len(locations))}
 
