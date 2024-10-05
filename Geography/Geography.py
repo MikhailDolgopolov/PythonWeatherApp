@@ -37,6 +37,19 @@ def get_coordinates(name):
         return location.latitude, location.longitude
     return None
 
+def get_location(address: str) -> Location|None:
+    geolocator = Nominatim(user_agent="city_name_detector")
+
+    try:
+        # Geocode the input to get potential city matches
+        location = geolocator.geocode(address,
+                                       addressdetails=True,
+                                       language='ru',
+                                       )
+        return location
+    except GeocoderTimedOut:
+        print("Geocoding service timed out.")
+        return None
 
 def get_closest_city_matches(input_name, max_results=6) -> list[Location]:
     geolocator = Nominatim(user_agent="city_name_detector")
@@ -51,9 +64,6 @@ def get_closest_city_matches(input_name, max_results=6) -> list[Location]:
                                        exactly_one=False, limit=6)
         if locations is None:
             return []
-        # pprint(locations)
-        # print()
-        # [print(loc.raw['type']) for loc in locations]
         locations = [loc for loc in locations if loc.raw['type'] in
                      city_types]
         seen = set()
@@ -68,20 +78,7 @@ def get_closest_city_matches(input_name, max_results=6) -> list[Location]:
                 unique_locations.append(location)
 
         locations:list[Location] = unique_locations
-
-        names = [loc.address.split(',')[0].lower() for loc in locations]
-        ds = {locations[i].address: Levenshtein.distance(input_name.lower(), names[i]) for i in range(len(locations))}
-
-        # Normalize the distances
-        normalized_ds = {k: v / len(k.split(',')[0]) for k, v in ds.items()}
-        result = [k for k, v in ds.items() if normalized_ds[k] < 0.8]
-
-        # Sort results by normalized distance
-        result = sorted(result, key=lambda loc: normalized_ds[loc])
-
-        # Retrieve the original Location objects based on the address
-        final_results = [loc for loc in locations if loc.address in result][:max_results]
-        return final_results
+        return locations[:max_results]
 
     except GeocoderTimedOut:
         print("Geocoding service timed out.")
@@ -119,7 +116,6 @@ def find_closest_city(target_city: str, cities: List[str], threshold=15) -> str 
 
     for city in cities:
         dist = distance_between_cities(city, target_city)
-        # print(f"{city:<40}, {distance}")
         if dist < threshold:
             return city
         if dist < min_distance:

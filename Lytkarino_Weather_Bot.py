@@ -5,6 +5,7 @@ import logging
 import re
 import threading
 import time
+from importlib.metadata import entry_points
 from pprint import pformat, pprint
 from typing import Literal
 
@@ -22,7 +23,7 @@ from telegram.ext import (
 from Day import Day
 from Forecast import Forecast
 from ForecastRendering import render_forecast_data
-from Geography.CityNames import get_readable_names
+from Geography.CityNames import get_readable_names, default_city
 from Geography.Geography import get_closest_city_matches
 from geopy.distance import geodesic
 from helpers import read_json, random_delay
@@ -47,7 +48,7 @@ logger = logging.getLogger(__name__)
 
 CHOOSING_SETTING, R_SETTINGS, T_SETTINGS, = 0, 1, 2
 CHOOSING_DAY, REPEAT = 3, 4
-CHOOSING_CITY = 5
+CHOOSING_CITY, CHOOSING_POINT = 5, 6
 STOP_WORD = "OK"
 EMPTY = "[ пусто ]"
 
@@ -67,7 +68,7 @@ def reset_data(context:CallbackContext):
     context.chat_data["temp-sources"] = default_sources
     context.chat_data["rain-sources"] = default_sources
     context.chat_data["forecast"] = Forecast(temp_sources=default_sources, rain_sources=default_sources)
-    context.chat_data["city"] = 'Лыткарино, Московская область'
+    context.chat_data["city"] = default_city
 
 
 async def start(update: Update, context: CallbackContext) -> None:
@@ -77,8 +78,10 @@ async def start(update: Update, context: CallbackContext) -> None:
         "Отправьте любое сообщение со словами 'сегодня' или 'завтра', и я отправлю соответствующий прогноз.\n"
         "Чтобы быстро выбрать другой день, отправьте 'погода' или 'прогноз'.")
     time.sleep(3)
-    await update.message.reply_text("Чтобы посмотреть погоду не в Лыткарино, просто отправьте мне название города. \n"
+    await update.message.reply_text(f"Чтобы посмотреть погоду не в {default_city}, просто отправьте мне название города. \n"
                                     "Любое другое сообщение тоже позволит выбрать день.")
+    time.sleep(2.5)
+    await update.message.reply_text("Openmeteo позволяет посмотреть погоду в любой точке. Чтобы воспользоваться этим, отпраьте координаты в формате 35.7, 37.6 и подтвердите выбор.")
     time.sleep(3)
     await update.message.reply_text("Вот пример моей работы:")
     time.sleep(1)
@@ -272,7 +275,7 @@ async def handle_day(update: Update, context: CallbackContext) -> int:
     await query.edit_message_text(f"Выбрано {day.D_month}, {day.day_name}")
     await send(update, context, d)
 
-    return CHOOSING_DAY
+    return REPEAT
 
 
 async def handle_again(update: Update, context: CallbackContext):
@@ -324,6 +327,7 @@ async def find_city(update: Update, context: CallbackContext):
         return await days(update, context, text=f"Выберите день для прогноза в {context.chat_data['city'].split(', ')[0]}:")
 
 
+
 async def handle_city(update: Update, context: CallbackContext) -> int:
     if 'city' not in context.chat_data or 'forecast' not in context.chat_data:
         reset_data(context)
@@ -348,7 +352,8 @@ async def click_city(update:Update, context: CallbackContext, address: str, mess
 async def get_city(update: Update, context: CallbackContext):
     if 'city' not in context.chat_data: reset_data(context)
     city = context.chat_data['city']
-    await update.message.reply_text(f"В данный момент выбран город {city}")
+    forecast:Forecast = context.chat_data['forecast']
+    await update.message.reply_text(f"В данный момент выбран город {forecast.place.full_str()}")
 
 async def ask_point(update: Update, context: CallbackContext):
     await update.message.reply_text("Точка получена. Подождите...")
@@ -359,35 +364,36 @@ async def ask_point(update: Update, context: CallbackContext):
     arr = coords.split(",")
     point = forecast.point_info(coords)
     # await update.message.reply_text(f"got info {point}")
-    if isinstance(point, str): await context.bot.send_message(update.effective_chat.id, f"{point}")
+    if isinstance(point, str):
+        await context.bot.send_message(update.effective_chat.id, f"{point}")
+        return ConversationHandler.END
     if isinstance(point, float):
         keyboard = [[InlineKeyboardButton(text=STOP_WORD, callback_data=coords), InlineKeyboardButton(text="Отменить", callback_data="cancel")]]
-        await context.bot.send_message(update.effective_chat.id, f"Расстояние от точки до выбранного сейчас города {point} км. Утвердить точку?",
+        await context.bot.send_message(update.effective_chat.id, f"Расстояние от этой точки до выбранной сейчас — {point} км. Утвердить точку?",
                                        reply_markup=InlineKeyboardMarkup(keyboard))
 
-    # await context.bot.send_message(update.effective_chat.id, f"Looking for {coords}")
-
+async def internal_error(update: Update, context: CallbackContext):
+    await context.bot.send_message(update.effective_chat.id, "Извините, что-то пошло не так.")
 
 async def set_point(update:Update, context:CallbackContext):
     query = update.callback_query
     await query.answer()
     if query.data == "cancel":
-        return
+        return ConversationHandler.END
     await context.bot.send_message(update.effective_chat.id, f"Подождите...")
     context.chat_data["forecast"].set_openmeteo_point(query.data)
-    await context.bot.send_message(update.effective_chat.id, f"Точка установлена")
+    await context.bot.send_message(update.effective_chat.id, f"Точка установлена: {context.chat_data['forecast'].place.full_str()}")
+    return await days(update, context)
 
 
 def main() -> None:
     persistence = PicklePersistence(filepath='bot_persitence', update_interval=5)
     application = Application.builder().token(TOKEN).persistence(persistence).build()
-    threading.Thread(target=periodic_task, daemon=True).start()
+    # threading.Thread(target=periodic_task, daemon=True).start()
     application.add_handler(CommandHandler("start", start))
     application.add_handler(MessageHandler(filters.Regex(re.compile('город', re.IGNORECASE)), get_city))
-    application.add_handler(MessageHandler(filters.Regex(re.compile('прогноз|погода', re.IGNORECASE)), days))
     coords_regex = r"-?\d{1,2}\.\d+,\s+-?\d{1,2}\.\d+"
-    application.add_handler(MessageHandler(filters.Regex(coords_regex), ask_point))
-    application.add_handler(CallbackQueryHandler(set_point, pattern="|".join([coords_regex, "cancel"])))
+
 
     application.add_handler(
         MessageHandler(filters.Regex(re.compile(r'^(?!.*завтра)сегодня(?!.*завтра).*$', re.IGNORECASE)),
@@ -413,20 +419,28 @@ def main() -> None:
                 CallbackQueryHandler(handle_one_button, pattern='temp')
             ]
         },
-        fallbacks=[CommandHandler("settings", settings)]
+        fallbacks=[MessageHandler(filters.ALL, internal_error)]
     )
 
     application.add_handler(settings_handler)
-    entry_for_days = [MessageHandler(filters.TEXT & ~filters.COMMAND, find_city),
-                      CallbackQueryHandler(handle_again, pattern=r'again')]
+
+    application.add_handler(MessageHandler(filters.Regex(coords_regex), ask_point))
+    application.add_handler(CallbackQueryHandler(set_point, pattern="|".join([coords_regex, "cancel"])))
+    entry_for_days = [
+                      CallbackQueryHandler(handle_again, pattern=r'again'),
+                      MessageHandler(filters.Regex(re.compile('прогноз|погода', re.IGNORECASE)), days),
+                      CallbackQueryHandler(set_point, pattern="|".join([coords_regex, "cancel"])),
+                      MessageHandler(filters.TEXT & ~filters.COMMAND & ~filters.Regex(coords_regex), find_city)
+                      ]
     days_handler = ConversationHandler(
         entry_points=entry_for_days,
         states={
             CHOOSING_DAY: [CallbackQueryHandler(handle_day, pattern=r'\d{6,8}')],
+            # CHOOSING_DAY: [CallbackQueryHandler(handle_day)],
             REPEAT: [CallbackQueryHandler(handle_again)],
             CHOOSING_CITY: [CallbackQueryHandler(handle_city)]
         },
-        fallbacks=entry_for_days
+        fallbacks=[*entry_for_days, MessageHandler(filters.ALL, internal_error)]
     )
 
     application.add_handler(days_handler)

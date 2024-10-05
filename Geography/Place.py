@@ -1,7 +1,7 @@
 from geopy import Location
 
 from Geography.CityNames import get_readable_name
-from Geography.Geography import get_closest_city_matches, city_types, what_is_there
+from Geography.Geography import get_closest_city_matches, city_types, what_is_there, get_location
 
 
 class Place:
@@ -9,19 +9,21 @@ class Place:
         self.location:Location = get_closest_city_matches(city_name)[0]
         self.display_name = get_readable_name(self.location)
 
-        self.city_coords = self.location.latitude, self.location.longitude
+        self.coords = self.location.latitude, self.location.longitude
 
-    def set_new_point(self, coords):
+    def set_new_point(self, coords:tuple[float]):
         new_loc = what_is_there(coords)
         self.set_new_location(new_loc)
-
-    def set_new_location(self, new_loc:Location|str):
-        if isinstance(new_loc, str):
-            new_loc = get_closest_city_matches(new_loc)[0]
+        self.coords = coords
+    def set_new_location(self, address:str):
+        new_loc = get_location(address)
         self.display_name = get_readable_name(new_loc)
-        if new_loc.type in city_types:
+        if new_loc.raw['type'] in city_types:
             self.location = new_loc
-            self.city_coords = new_loc.latitude, new_loc.longitude
+
 
     def __str__(self):
         return self.display_name
+
+    def full_str(self):
+        return f"{self.display_name}, {', '.join([str(round(cc, 3)) for cc in self.coords])}"

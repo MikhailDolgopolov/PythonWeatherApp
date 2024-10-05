@@ -7,6 +7,7 @@ from typing import Literal, Self
 import numpy as np
 import pandas as pd
 
+from Geography.CityNames import default_city
 from Geography.Geography import get_coordinates
 from geopy.distance import geodesic
 
@@ -36,7 +37,7 @@ class Forecast:
         self.temps:list[str] = []
         self.rains:list[str] = []
         # print("Forecast init")
-        self.place = Place('Лыткарино, Московская область')
+        self.place = Place(default_city)
         if temp_sources is None: temp_sources=self.all_sources()
         if rain_sources is None: rain_sources=self.all_sources()
         self.change_temp_sources(temp_sources, mode)
@@ -128,7 +129,7 @@ class Forecast:
         point_tuple = tuple(float(num) for num in point_tuple.split(","))
         for parser in self.parsers:
             if parser.name=="Openmeteo":
-                d = geodesic(self.place.city_coords, point_tuple).kilometers
+                d = geodesic(self.place.coords, point_tuple).kilometers
                 # print(f"dist: {d} km")
                 return round(d,1)
         else:

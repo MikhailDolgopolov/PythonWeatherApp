@@ -1,4 +1,8 @@
+from email.policy import default
+
 from geopy import Location
+
+default_city = "Москва"
 def get_readable_names(cities:list[Location]):
     return [get_readable_name(c) for c in cities]
 
@@ -10,7 +14,7 @@ def get_readable_name(city:Location):
         state = address.get('region') or address.get('state_district') or address.get('county') if name in state else state
     except:
         pass
-    state = address.get('region') or address.get('state_district') or address.get('county') if name in state else state
+    state = address.get('region') or address.get('state_district') or address.get('county') if name  and name in state else state
 
     result = f"{name}, {state}" if state else name
     return result
