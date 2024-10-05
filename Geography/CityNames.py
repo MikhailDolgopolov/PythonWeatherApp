@@ -14,7 +14,7 @@ def get_readable_name(city:Location):
         state = address.get('region') or address.get('state_district') or address.get('county') if name in state else state
     except:
         pass
-    state = address.get('region') or address.get('state_district') or address.get('county') if name  and name in state else state
+    state = address.get('region') or address.get('state_district') or address.get('county') if name and state and name in state else state
 
     result = f"{name}, {state}" if state else name
     return result

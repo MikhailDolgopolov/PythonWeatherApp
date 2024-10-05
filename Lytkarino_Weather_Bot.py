@@ -11,6 +11,7 @@ from typing import Literal
 
 import numpy as np
 import urllib3
+from pyexpat.errors import messages
 from telegram import Update, InlineKeyboardMarkup, InlineKeyboardButton, CallbackQuery, Message
 from telegram.ext import (
     Application,
@@ -26,7 +27,7 @@ from ForecastRendering import render_forecast_data
 from Geography.CityNames import get_readable_names, default_city
 from Geography.Geography import get_closest_city_matches
 from geopy.distance import geodesic
-from helpers import read_json, random_delay
+from helpers import read_json, random_delay, inflect
 
 from warnings import filterwarnings
 from telegram.warnings import PTBUserWarning
@@ -78,10 +79,10 @@ async def start(update: Update, context: CallbackContext) -> None:
         "Отправьте любое сообщение со словами 'сегодня' или 'завтра', и я отправлю соответствующий прогноз.\n"
         "Чтобы быстро выбрать другой день, отправьте 'погода' или 'прогноз'.")
     time.sleep(3)
-    await update.message.reply_text(f"Чтобы посмотреть погоду не в {default_city}, просто отправьте мне название города. \n"
+    await update.message.reply_text(f"Чтобы посмотреть погоду не в {inflect(default_city, 'loct').title()}, просто отправьте мне название города. \n"
                                     "Любое другое сообщение тоже позволит выбрать день.")
     time.sleep(2.5)
-    await update.message.reply_text("Openmeteo позволяет посмотреть погоду в любой точке. Чтобы воспользоваться этим, отпраьте координаты в формате 35.7, 37.6 и подтвердите выбор.")
+    await update.message.reply_text("Openmeteo позволяет посмотреть погоду в любой точке. Чтобы воспользоваться этим, отправьте координаты в формате 35.7, 37.6 и подтвердите выбор.")
     time.sleep(3)
     await update.message.reply_text("Вот пример моей работы:")
     time.sleep(1)
@@ -121,7 +122,7 @@ async def send(thing: Update, context: CallbackContext, forecast_date: datetime)
 
     forecast = context.chat_data['forecast']
     pic = render_forecast_data(forecast.fetch_forecast(forecast_date), forecast_date,
-                               city=context.chat_data.get('city', None), uid=chat_id)
+                               city=str(forecast.place), uid=chat_id)
 
     await context.bot.send_photo(chat_id=chat_id, photo=pic["path"], caption=forecast.last_updated(forecast_date).strftime(
         "Данные в последний раз обновлены %d.%m.%Y, в %H:%M"))
@@ -346,31 +347,32 @@ async def click_city(update:Update, context: CallbackContext, address: str, mess
 
     context.chat_data['forecast'] = context.chat_data['forecast'].find_city(address)
     if message: await context.bot.delete_message(update.effective_chat.id, message.message_id)
+    if context.chat_data["forecast"].open:
+        await context.bot.send_message(update.effective_chat.id, "(для чуть более точных прогнозов от Openmeteo вы можете ввести координаты интересующей точки)")
     return await days(update, context)
 
 
 async def get_city(update: Update, context: CallbackContext):
     if 'city' not in context.chat_data: reset_data(context)
-    city = context.chat_data['city']
     forecast:Forecast = context.chat_data['forecast']
     await update.message.reply_text(f"В данный момент выбран город {forecast.place.full_str()}")
 
 async def ask_point(update: Update, context: CallbackContext):
-    await update.message.reply_text("Точка получена. Подождите...")
+
+    context.chat_data["edit_point"] = await update.message.reply_text("Точка получена. Подождите...")
 
     if 'forecast' not in context.chat_data: reset_data(context)
     forecast:Forecast = context.chat_data['forecast']
     coords = update.message.text
-    arr = coords.split(",")
     point = forecast.point_info(coords)
-    # await update.message.reply_text(f"got info {point}")
+
     if isinstance(point, str):
-        await context.bot.send_message(update.effective_chat.id, f"{point}")
         return ConversationHandler.END
     if isinstance(point, float):
         keyboard = [[InlineKeyboardButton(text=STOP_WORD, callback_data=coords), InlineKeyboardButton(text="Отменить", callback_data="cancel")]]
         await context.bot.send_message(update.effective_chat.id, f"Расстояние от этой точки до выбранной сейчас — {point} км. Утвердить точку?",
                                        reply_markup=InlineKeyboardMarkup(keyboard))
+
 
 async def internal_error(update: Update, context: CallbackContext):
     await context.bot.send_message(update.effective_chat.id, "Извините, что-то пошло не так.")
@@ -379,6 +381,8 @@ async def set_point(update:Update, context:CallbackContext):
     query = update.callback_query
     await query.answer()
     if query.data == "cancel":
+        await context.bot.edit_message_text(chat_id = query.message.chat_id, message_id=context.chat_data["edit_point"].id, text="Точка не была установлена.")
+        await query.message.delete()
         return ConversationHandler.END
     await context.bot.send_message(update.effective_chat.id, f"Подождите...")
     context.chat_data["forecast"].set_openmeteo_point(query.data)
@@ -425,6 +429,7 @@ def main() -> None:
     application.add_handler(settings_handler)
 
     application.add_handler(MessageHandler(filters.Regex(coords_regex), ask_point))
+
     application.add_handler(CallbackQueryHandler(set_point, pattern="|".join([coords_regex, "cancel"])))
     entry_for_days = [
                       CallbackQueryHandler(handle_again, pattern=r'again'),
@@ -436,15 +441,14 @@ def main() -> None:
         entry_points=entry_for_days,
         states={
             CHOOSING_DAY: [CallbackQueryHandler(handle_day, pattern=r'\d{6,8}')],
-            # CHOOSING_DAY: [CallbackQueryHandler(handle_day)],
-            REPEAT: [CallbackQueryHandler(handle_again)],
+            REPEAT: [CallbackQueryHandler(handle_again, pattern=r'again'), CallbackQueryHandler(handle_day, pattern=r'\d{6,8}')],
             CHOOSING_CITY: [CallbackQueryHandler(handle_city)]
         },
         fallbacks=[*entry_for_days, MessageHandler(filters.ALL, internal_error)]
     )
 
     application.add_handler(days_handler)
-
+    application.add_handler(CallbackQueryHandler(handle_day, pattern=r'\d{6,8}'))
     # application.add_handler(CommandHandler("debug", debug))
     # Run the bot until the user presses Ctrl-C
     application.run_polling(allowed_updates=Update.ALL_TYPES)

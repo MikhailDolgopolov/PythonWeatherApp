@@ -40,6 +40,7 @@ class Forecast:
         self.place = Place(default_city)
         if temp_sources is None: temp_sources=self.all_sources()
         if rain_sources is None: rain_sources=self.all_sources()
+        self.open = "Openmeteo" in temp_sources
         self.change_temp_sources(temp_sources, mode)
         self.change_rain_sources(rain_sources, mode)
         # print("Forecast object is ready")
@@ -94,6 +95,7 @@ class Forecast:
             self.parsers.append(new_parser)
 
         self.temps = new_temp_sources
+        self.open = "Openmeteo" in new_temp_sources
         parsers_to_remove = [p for p in self.parsers if p.name not in new_sources]
         for odd in parsers_to_remove:
             self.parsers.remove(odd)
