@@ -10,9 +10,7 @@ import pandas as pd
 from Geography.Geography import get_coordinates
 from geopy.distance import geodesic
 
-
-
-
+from Geography.Place import Place
 from Parsers.BaseParser import BaseParser
 from Parsers.ForecaParser import ForecaParser
 from Parsers.GismeteoParser import GismeteoParser
@@ -38,8 +36,7 @@ class Forecast:
         self.temps:list[str] = []
         self.rains:list[str] = []
         # print("Forecast init")
-        self.city = 'Лыткарино, Московская область'
-        self.city_coords = get_coordinates(self.city)
+        self.place = Place('Лыткарино, Московская область')
         if temp_sources is None: temp_sources=self.all_sources()
         if rain_sources is None: rain_sources=self.all_sources()
         self.change_temp_sources(temp_sources, mode)
@@ -79,8 +76,7 @@ class Forecast:
         print(datetime.now(), f"finished updating forecasts for {date.strftime('%d.%m.%Y')}")
 
     def find_city(self, city:str) -> Self:
-        self.city = city
-        self.city_coords = get_coordinates(city)
+        self.place.set_new_location(city)
         for i in range(len(self.parsers)):
             getter = self.parsers[i]
             getter.find_city(city)
@@ -93,7 +89,7 @@ class Forecast:
         missing_sources = [source for source in new_sources if source not in old_sources]
         for source in missing_sources:
             new_parser = globals()[f"{source}{mode}"]()
-            new_parser.find_city(self.city)
+            new_parser.find_city(str(self.place))
             self.parsers.append(new_parser)
 
         self.temps = new_temp_sources
@@ -110,7 +106,7 @@ class Forecast:
         missing_sources = [source for source in new_sources if source not in old_sources]
         for source in missing_sources:
             new_parser = globals()[f"{source}{mode}"]()
-            new_parser.find_city(self.city)
+            new_parser.find_city(str(self.place))
             self.parsers.append(new_parser)
 
         self.rains = new_rain_sources
@@ -132,9 +128,7 @@ class Forecast:
         point_tuple = tuple(float(num) for num in point_tuple.split(","))
         for parser in self.parsers:
             if parser.name=="Openmeteo":
-                # print(f"{self.city}: {self.city_coords}")
-                # print(f"point: {point_tuple}")
-                d = geodesic(self.city_coords, point_tuple).kilometers
+                d = geodesic(self.place.city_coords, point_tuple).kilometers
                 # print(f"dist: {d} km")
                 return round(d,1)
         else:
@@ -145,8 +139,10 @@ class Forecast:
         point_tuple = tuple(float(num) for num in point_tuple.split(","))
         for parser in self.parsers:
             if parser.name == "Openmeteo":
+                self.place.set_new_point(point_tuple)
                 parser: OpenmeteoParser = parser
                 parser.set_params(point_tuple)
+
         else:
             return "У вас не выбрано Openmeteo для прогноза по координатам"
 
