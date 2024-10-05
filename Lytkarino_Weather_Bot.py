@@ -22,6 +22,7 @@ from telegram.ext import (
 from Day import Day
 from Forecast import Forecast
 from ForecastRendering import render_forecast_data
+from Geography.CityNames import get_readable_names
 from Geography.Geography import get_closest_city_matches
 from geopy.distance import geodesic
 from helpers import read_json, random_delay
@@ -303,19 +304,7 @@ async def find_city(update: Update, context: CallbackContext):
 
     if cities:
         coors = [str((loc.latitude, loc.longitude)) for loc in cities]
-        data = [city.raw['address'] for city in cities]
-
-        names = [address.get('city') or address.get('town') or address.get('village')
-                 or address.get('neighbourhood') or address.get('suburb') for address in data]
-        states = [
-            address.get('state') or address.get('region') or address.get('county') or address.get('state_district')
-            for address in data]
-        try:
-            states = [data[i].get('region') or data[i].get('state_district') or data[i].get('county')
-                      if names[i] in states[i] else states[i] for i in range(len(cities))]
-        except: pass
-        states = [f"{states[i]}, {data[i]['country']}" if len(states[i])<20 else states[i] for i in range(len(cities))]
-        addresses = [f"{names[i]}, {states[i]}" if states[i] else names[i] for i in range(len(cities))]
+        addresses = get_readable_names(cities)
 
         context.chat_data['cities_select'] = {coors[i]: addresses[i] for i in range(len(cities))}
 

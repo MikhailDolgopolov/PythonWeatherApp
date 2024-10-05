@@ -9,6 +9,7 @@ from geopy.exc import GeocoderTimedOut
 from geopy.distance import distance
 from geopy.extra.rate_limiter import RateLimiter
 
+city_types = ['suburb', 'neighbourhood', 'city', 'village', 'town', 'residential', 'administrative']
 
 def verify_city(name):
     geolocator = Nominatim(user_agent="city_locator for weather")
@@ -37,7 +38,7 @@ def get_coordinates(name):
     return None
 
 
-def get_closest_city_matches(input_name, max_results=4) -> list[Location]:
+def get_closest_city_matches(input_name, max_results=6) -> list[Location]:
     geolocator = Nominatim(user_agent="city_name_detector")
 
 
@@ -50,11 +51,11 @@ def get_closest_city_matches(input_name, max_results=4) -> list[Location]:
                                        exactly_one=False, limit=6)
         if locations is None:
             return []
-        pprint(locations)
+        # pprint(locations)
         # print()
         # [print(loc.raw['type']) for loc in locations]
         locations = [loc for loc in locations if loc.raw['type'] in
-                     ['suburb', 'neighbourhood', 'city', 'village', 'town', 'residential', 'administrative']]
+                     city_types]
         seen = set()
         unique_locations = []
 
@@ -67,7 +68,7 @@ def get_closest_city_matches(input_name, max_results=4) -> list[Location]:
                 unique_locations.append(location)
 
         locations:list[Location] = unique_locations
-        pprint(locations)
+
         names = [loc.address.split(',')[0].lower() for loc in locations]
         ds = {locations[i].address: Levenshtein.distance(input_name.lower(), names[i]) for i in range(len(locations))}
 
@@ -128,3 +129,27 @@ def find_closest_city(target_city: str, cities: List[str], threshold=15) -> str 
     if closest_city is None: closest_city=cities[0]
     if min_distance>threshold: return None
     return closest_city
+
+def what_is_there(point: str|tuple) -> Location:
+    geolocator = Nominatim(user_agent="place finder")
+
+    try:
+        # Geocode the input to get potential city matches
+        locations = geolocator.reverse(point,
+                                             addressdetails=True,
+                                             language='ru',
+                                             exactly_one=False
+                                             )
+
+        if len(locations)==1: return locations[0]
+        max_importance, place = 0, locations[0]
+
+        for l in locations:
+            if l.raw["importance"]>max_importance:
+                place = l
+                max_importance = l.raw['importance']
+        return place
+
+    except GeocoderTimedOut:
+        print("Geocoding service timed out.")
+        return []
