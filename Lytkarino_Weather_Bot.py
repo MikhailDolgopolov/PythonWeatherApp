@@ -50,7 +50,7 @@ def reset_data(context:CallbackContext, persistent:dict=None):
         persistent = {}
     context.chat_data.clear()
     context.chat_data["forecast"] = Forecast()
-    context.chat_data["city"] = 'Лыткарино, Московская область'
+    context.chat_data["city"] = default_city
     context.chat_data.update(persistent)
 
 
