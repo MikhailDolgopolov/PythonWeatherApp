@@ -12,12 +12,8 @@ RUN useradd -ms /bin/bash myuser
 
 USER myuser
 
-RUN apt-get update && \
-    apt-get install -y locales && \
-    sed -i -e 's/# ru_RU.UTF-8 UTF-8/ru_RU.UTF-8 UTF-8/' /etc/locale.gen && \
-    dpkg-reconfigure --frontend=noninteractive locales
-
-
+ENV MUSL_LOCPATH="/usr/share/i18n/locales/musl"
+RUN apk add --no-cache --update musl-locales
 RUN SUDO update-locale
 
 ENV LANG ru_RU.UTF-8
