@@ -8,9 +8,7 @@ ENV PYTHONUNBUFFERED=1
 # Set the working directory in the container
 WORKDIR /
 
-RUN useradd -ms /bin/bash myuser
-
-USER myuser
+USER feeeen
 
 # Copy the requirements file to the container
 COPY requirements.txt .
