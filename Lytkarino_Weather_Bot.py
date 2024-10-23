@@ -200,10 +200,10 @@ async def get_city(update: Update, context: CallbackContext):
 
 
 async def ask_point(update: Update, context: CallbackContext):
-
+    if 'forecast' not in context.chat_data or 'city' not in context.chat_data: reset_data(context)
     context.chat_data["edit_point"] = await update.message.reply_text("Точка получена. Подождите...")
 
-    if 'forecast' not in context.chat_data or 'city' not in context.chat_data: reset_data(context)
+
     forecast:Forecast = context.chat_data['forecast']
     coords = update.message.text
     point = forecast.point_info(coords)
@@ -225,6 +225,7 @@ async def set_point(update:Update, context:CallbackContext):
     await query.answer()
     if query.data == "cancel":
         await query.message.delete()
+        await context.bot.delete_message(update.effective_chat.id, context.chat_data['edit_point'])
         return ConversationHandler.END
     await context.bot.send_message(update.effective_chat.id, f"Подождите...")
     context.chat_data["forecast"].set_openmeteo_point(query.data)
