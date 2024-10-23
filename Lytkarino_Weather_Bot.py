@@ -223,7 +223,10 @@ async def set_point(update:Update, context:CallbackContext):
     query = update.callback_query
     await query.answer()
     if query.data == "cancel":
-        await context.bot.edit_message_text(chat_id = query.message.chat_id, message_id=context.chat_data["edit_point"].id, text="Точка не была установлена.")
+        try:
+            await context.bot.edit_message_text(chat_id = query.message.chat_id, message_id=context.chat_data["edit_point"].id, text="Точка не была установлена.")
+        except:
+            print("Lazy error catch")
         await query.message.delete()
         return ConversationHandler.END
     await context.bot.send_message(update.effective_chat.id, f"Подождите...")
