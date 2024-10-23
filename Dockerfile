@@ -8,6 +8,7 @@ ENV PYTHONUNBUFFERED=1
 # Set the working directory in the container
 WORKDIR /data
 
+RUN mkdir -p /app/data
 # Set the timezone
 ENV TZ=Europe/Moscow
 RUN ln -snf /usr/share/zoneinfo/$TZ /etc/localtime && echo $TZ > /etc/timezone

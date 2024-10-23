@@ -80,7 +80,7 @@ def render_forecast_data(data:pd.DataFrame, date: datetime, city:str = None, sav
     plt.title(f"Прогноз на {day.accs_day_name}, {day.D_month}", y=1.07)
     if city: plt.suptitle(city, fontsize='medium', y=0.92)
 
-    path = f"Images/{day.short_date}_{uid}.png"
+    path = f"data/images/{day.short_date}_{uid}.png"
 
     if save:
         plt.savefig(path, bbox_inches="tight", dpi=600)

@@ -230,7 +230,7 @@ async def set_point(update:Update, context:CallbackContext):
 
 
 def main() -> None:
-    persistence = PicklePersistence(filepath='bot_persitence', update_interval=5)
+    persistence = PicklePersistence(filepath='data/bot_persitence', update_interval=5)
     application = Application.builder().token(TOKEN).persistence(persistence).build()
     application.add_handler(CommandHandler("start", start))
     application.add_handler(MessageHandler(filters.Regex(re.compile('город', re.IGNORECASE)), get_city))
