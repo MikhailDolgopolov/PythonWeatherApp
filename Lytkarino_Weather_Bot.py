@@ -224,17 +224,12 @@ async def set_point(update:Update, context:CallbackContext):
     query = update.callback_query
     await query.answer()
     if query.data == "cancel":
-        try:
-            await context.bot.edit_message_text(chat_id = query.message.chat_id, message_id=context.chat_data["edit_point"].id, text="Точка не была установлена.")
-        except:
-            print("Lazy error catch")
         await query.message.delete()
         return ConversationHandler.END
     await context.bot.send_message(update.effective_chat.id, f"Подождите...")
     context.chat_data["forecast"].set_openmeteo_point(query.data)
     await context.bot.send_message(update.effective_chat.id, f"Точка установлена: {context.chat_data['forecast'].place.full_str()}")
     return await days(update, context)
-
 
 
 def main() -> None:
