@@ -138,7 +138,7 @@ async def handle_again(update: Update, context: CallbackContext):
 async def find_city(update: Update, context: CallbackContext):
     loading = await update.message.reply_text("Подождите...")
     cities = get_closest_city_matches(update.message.text)
-    if cities:
+    if cities and len(cities)>0:
         coors = [str((loc.latitude, loc.longitude)) for loc in cities]
         data = [city.raw['address'] for city in cities]
 
