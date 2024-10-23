@@ -203,7 +203,7 @@ async def ask_point(update: Update, context: CallbackContext):
 
     context.chat_data["edit_point"] = await update.message.reply_text("Точка получена. Подождите...")
 
-    if 'forecast' not in context.chat_data: reset_data(context)
+    if 'forecast' not in context.chat_data or 'city' not in context.chat_data: reset_data(context)
     forecast:Forecast = context.chat_data['forecast']
     coords = update.message.text
     point = forecast.point_info(coords)
