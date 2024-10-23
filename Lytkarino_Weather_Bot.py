@@ -216,8 +216,9 @@ async def ask_point(update: Update, context: CallbackContext):
                                        reply_markup=InlineKeyboardMarkup(keyboard))
 
 
-async def internal_error(update: Update, context: CallbackContext):
+async def internal_error(update: Update, context: CallbackContext) -> int:
     await context.bot.send_message(update.effective_chat.id, "Извините, что-то пошло не так.")
+    return ConversationHandler.END
 
 async def set_point(update:Update, context:CallbackContext):
     query = update.callback_query
