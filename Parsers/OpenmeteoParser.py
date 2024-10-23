@@ -1,7 +1,6 @@
 from datetime import datetime, timedelta
 from typing import Self
 
-import numpy as np
 import openmeteo_requests
 import pandas as pd
 import requests_cache
@@ -9,7 +8,6 @@ from retry_requests import retry
 
 from Geography.Geography import get_coordinates
 from MetadataController import MetadataController
-from Parsers.BaseParser import BaseParser
 from Parsers.SeekParser import SeekParser
 from helpers import my_point
 

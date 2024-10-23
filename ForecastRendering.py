@@ -1,16 +1,14 @@
-import os
-from datetime import datetime, timedelta
-
-import pandas as pd
-import numpy as np
+from datetime import datetime
 
 import matplotlib
+import numpy as np
+import pandas as pd
+
 matplotlib.use('Agg')
 from matplotlib import pyplot as plt
 import seaborn as sns
 
 from Day import Day
-from Forecast import Forecast
 from helpers import check_and_add_numbers
 
 sns.set_style("whitegrid")
@@ -58,7 +56,6 @@ def render_forecast_data(data:pd.DataFrame, date: datetime, city:str = None, sav
         bottom -= 4
 
         bar_width = 1
-        shift = 0
 
         plt.bar(x_axis, mean_prec, bar_width, bottom=bottom,
                 color=colormap["Openmeteo"], zorder=4, linewidth=0)

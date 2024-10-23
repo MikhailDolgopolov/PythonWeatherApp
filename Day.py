@@ -1,6 +1,6 @@
 import locale
 from datetime import datetime, timedelta, timezone
-from typing import Union
+
 from suntime import Sun
 
 from helpers import inflect, my_point

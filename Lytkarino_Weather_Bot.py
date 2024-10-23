@@ -1,12 +1,13 @@
 
-import os
-from datetime import datetime, timedelta, date
 import logging
+import os
 import re
 import time
+from datetime import datetime, timedelta, date
+from warnings import filterwarnings
 
 import urllib3
-from telegram import Update, InlineKeyboardMarkup, InlineKeyboardButton, CallbackQuery, Message
+from telegram import Update, InlineKeyboardMarkup, InlineKeyboardButton, Message
 from telegram.ext import (
     Application,
     PicklePersistence,
@@ -14,15 +15,12 @@ from telegram.ext import (
     ConversationHandler,
     MessageHandler,
     CallbackContext, filters, CallbackQueryHandler)
+from telegram.warnings import PTBUserWarning
 
 from Day import Day
 from Forecast import Forecast
 from ForecastRendering import render_forecast_data
 from Geography.Geography import get_closest_city_matches
-from helpers import read_json
-
-from warnings import filterwarnings
-from telegram.warnings import PTBUserWarning
 
 filterwarnings(action="ignore", message=r".*CallbackQueryHandler", category=PTBUserWarning)
 

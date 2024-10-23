@@ -1,13 +1,11 @@
-import time
-from datetime import datetime, timedelta
-import random
+from datetime import datetime
+from pathlib import Path
 
 import pandas as pd
-from pathlib import Path
 
 
 class BaseParser:
-    def __init__(self, name, headless=True):
+    def __init__(self, name):
 
         self.name = name
 

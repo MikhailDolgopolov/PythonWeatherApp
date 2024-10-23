@@ -2,7 +2,6 @@ from datetime import timedelta, datetime
 from pathlib import Path
 from typing import Union
 
-from Day import Day
 from helpers import read_json, write_json, delete_old_files
 
 
