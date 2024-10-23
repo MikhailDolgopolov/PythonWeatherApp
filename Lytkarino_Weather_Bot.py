@@ -225,7 +225,7 @@ async def set_point(update:Update, context:CallbackContext):
     await query.answer()
     if query.data == "cancel":
         await query.message.delete()
-        await context.bot.delete_message(update.effective_chat.id, context.chat_data['edit_point'])
+        await context.bot.delete_message(update.effective_chat.id, message_id=context.chat_data['edit_point'].id)
         return ConversationHandler.END
     await context.bot.send_message(update.effective_chat.id, f"Подождите...")
     context.chat_data["forecast"].set_openmeteo_point(query.data)
