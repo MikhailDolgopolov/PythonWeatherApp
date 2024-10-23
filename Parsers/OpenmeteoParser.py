@@ -3,18 +3,30 @@ from typing import Self
 
 import openmeteo_requests
 import pandas as pd
-import requests_cache
-from retry_requests import retry
+import requests
+from requests.adapters import HTTPAdapter
+from urllib3 import Retry
 
 from Geography.Geography import get_coordinates
 from MetadataController import MetadataController
 from Parsers.SeekParser import SeekParser
 from helpers import my_point
 
-# Set up the Open-Meteo API client with cache and retry on error
-cache_session = requests_cache.CachedSession('.cache', expire_after=3600)
-retry_session = retry(cache_session, retries=5, backoff_factor=0.2)
-openmeteo = openmeteo_requests.Client(session=retry_session)
+# Create a session for making requests
+session = requests.Session()
+
+# Configure retries
+retry_strategy = Retry(
+    total=5,  # Total number of retries
+    backoff_factor=0.2,  # A delay factor for backoff
+    status_forcelist=[500, 502, 503, 504]  # HTTP status codes to retry
+)
+
+# Mount the adapter to the session
+adapter = HTTPAdapter(max_retries=retry_strategy)
+session.mount('http://', adapter)
+session.mount('https://', adapter)
+openmeteo = openmeteo_requests.Client(session=session)
 
 
 # Make sure all required weather variables are listed here
