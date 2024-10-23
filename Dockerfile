@@ -1,5 +1,5 @@
 # Use the official Python image from Docker Hub
-FROM python:3.11-slim
+FROM python:3.11
 
 # Set environment variables to avoid prompts from Python
 ENV PYTHONDONTWRITEBYTECODE=1
@@ -21,10 +21,12 @@ RUN apt-get update && apt-get install -y \
 # Generate the desired locale (e.g., Russian)
 RUN locale-gen ru_RU.UTF-8
 
-## Set the locale environment variable
-#ENV LANG=ru_RU.UTF-8 \
-#    LANGUAGE=ru_RU:ru \
-#    LC_ALL=ru_RU.UTF-8
+RUN SUDO update-locale
+
+# Set the locale environment variable
+ENV LANG=ru_RU.UTF-8 \
+    LANGUAGE=ru_RU:ru \
+    LC_ALL=ru_RU.UTF-8
 
 
 # Copy the requirements file to the container
