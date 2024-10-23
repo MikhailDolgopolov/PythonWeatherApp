@@ -60,9 +60,12 @@ async def start(update: Update, context: CallbackContext) -> None:
     await update.message.reply_text(
         "Отправьте любое сообщение со словами 'сегодня' или 'завтра', и я отправлю соответствующий прогноз.\n"
         "Чтобы быстро выбрать другой день, отправьте 'погода' или 'прогноз'.")
-    time.sleep(3)
+    time.sleep(2)
     await update.message.reply_text(f"Чтобы посмотреть погоду не в {inflect(default_city, 'loct').title()}, просто отправьте мне название города. \n"
                                     "Любое другое сообщение тоже позволит выбрать день.")
+    time.sleep(2.5)
+    await update.message.reply_text(
+        "Openmeteo позволяет посмотреть погоду в любой точке. Для этого, отправьте координаты в формате 35.7, 37.6 и подтвердите выбор.")
     time.sleep(3)
     await update.message.reply_text("Вот пример моей работы:")
     time.sleep(1)
