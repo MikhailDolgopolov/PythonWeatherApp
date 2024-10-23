@@ -174,7 +174,8 @@ async def find_city(update: Update, context: CallbackContext):
 
 async def handle_city(update: Update, context: CallbackContext) -> int:
     if 'city' not in context.chat_data or 'forecast' not in context.chat_data:
-        reset_data(context)
+        await context.bot.send_message(update.effective_chat.id, "Сначала введите /start")
+        return ConversationHandler.END
     query = update.callback_query
     await query.answer()
     loading = await context.bot.send_message(update.effective_chat.id, "Обрабатываю ваш выбор...")
@@ -189,7 +190,8 @@ async def handle_city(update: Update, context: CallbackContext) -> int:
 
 async def click_city(update:Update, context: CallbackContext, address: str, message:Message=None) -> int:
     if 'city' not in context.chat_data or 'forecast' not in context.chat_data:
-        reset_data(context)
+        await context.bot.send_message(update.effective_chat.id, "Сначала введите /start")
+        return ConversationHandler.END
     context.chat_data['city'] = address
 
     context.chat_data['forecast'] = context.chat_data['forecast'].find_city(address)
