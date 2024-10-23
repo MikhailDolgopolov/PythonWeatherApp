@@ -6,13 +6,10 @@ import time
 from Forecast import Forecast
 from ForecastRendering import render_forecast_data
 from Geography.Geography import verify_city, get_closest_city_matches
-from Parsers.ForecaSeeker import ForecaSeeker
-from Parsers.GismeteoParser import GismeteoParser
-from Parsers.GismeteoSeeker import GismeteoSeeker
 from helpers import random_delay
 
 
-input_string = "Адмиралтейский район"
+f = Forecast()
+d = datetime.today()
+render_forecast_data(f.fetch_forecast(d), d, city=f.place.display_name, save=True)
 
-cities = get_closest_city_matches(input_string)
-pprint(cities)

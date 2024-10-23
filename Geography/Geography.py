@@ -1,13 +1,11 @@
-import string
-from pprint import pprint
+
 from typing import List
 
-import Levenshtein
-import numpy as np
 from geopy import Nominatim, Location
 from geopy.exc import GeocoderTimedOut
 from geopy.distance import distance
-from geopy.extra.rate_limiter import RateLimiter
+
+city_types = ['suburb', 'neighbourhood', 'city', 'village', 'town', 'residential', 'administrative']
 
 
 def verify_city(name):
@@ -37,7 +35,22 @@ def get_coordinates(name):
     return None
 
 
-def get_closest_city_matches(input_name, max_results=4) -> list[Location]:
+def get_location(address: str) -> Location|None:
+    geolocator = Nominatim(user_agent="city_name_detector")
+
+    try:
+        # Geocode the input to get potential city matches
+        location = geolocator.geocode(address,
+                                       addressdetails=True,
+                                       language='ru',
+                                       )
+        return location
+    except GeocoderTimedOut:
+        print("Geocoding service timed out.")
+        return None
+
+
+def get_closest_city_matches(input_name, max_results=6) -> list[Location]:
     geolocator = Nominatim(user_agent="city_name_detector")
 
 
@@ -50,11 +63,8 @@ def get_closest_city_matches(input_name, max_results=4) -> list[Location]:
                                        exactly_one=False, limit=6)
         if locations is None:
             return []
-        # pprint(locations)
-        # print()
-        # [print(loc.raw['type']) for loc in locations]
         locations = [loc for loc in locations if loc.raw['type'] in
-                     ['suburb', 'neighbourhood', 'city, village', 'town', 'residential', 'administrative']]
+                     city_types]
         seen = set()
         unique_locations = []
 
@@ -67,19 +77,7 @@ def get_closest_city_matches(input_name, max_results=4) -> list[Location]:
                 unique_locations.append(location)
 
         locations:list[Location] = unique_locations
-        names = [loc.address.split(',')[0].lower() for loc in locations]
-        ds = {locations[i].address: Levenshtein.distance(input_name.lower(), names[i]) for i in range(len(locations))}
-
-        # Normalize the distances
-        normalized_ds = {k: v / len(k.split(',')[0]) for k, v in ds.items()}
-        result = [k for k, v in ds.items() if normalized_ds[k] < 0.8]
-
-        # Sort results by normalized distance
-        result = sorted(result, key=lambda loc: normalized_ds[loc])
-
-        # Retrieve the original Location objects based on the address
-        final_results = [loc for loc in locations if loc.address in result][:max_results]
-        return final_results
+        return locations[:max_results]
 
     except GeocoderTimedOut:
         print("Geocoding service timed out.")
@@ -111,19 +109,42 @@ def distance_between_cities(point:str, target:str) ->float:
         return 20000
 
 
-def find_closest_city(target_city: str, cities: List[str], threshold=15) -> str | None:
-    closest_city = cities[0]
-    min_distance = float('inf')  # Initialize to a large number
+# def find_closest_city(target_city: str, cities: List[str], threshold=15) -> str | None:
+#     closest_city = cities[0]
+#     min_distance = float('inf')  # Initialize to a large number
+#
+#     for city in cities:
+#         dist = distance_between_cities(city, target_city)
+#         if dist < threshold:
+#             return city
+#         if dist < min_distance:
+#             min_distance = dist
+#             closest_city = city
+#
+#     if closest_city is None: closest_city=cities[0]
+#     if min_distance>threshold: return None
+#     return closest_city
 
-    for city in cities:
-        dist = distance_between_cities(city, target_city)
-        # print(f"{city:<40}, {distance}")
-        if dist < threshold:
-            return city
-        if dist < min_distance:
-            min_distance = dist
-            closest_city = city
+def what_is_there(point: str|tuple) -> Location|None:
+    geolocator = Nominatim(user_agent="place finder")
 
-    if closest_city is None: closest_city=cities[0]
-    if min_distance>threshold: return None
-    return closest_city
+    try:
+        # Geocode the input to get potential city matches
+        locations = geolocator.reverse(point,
+                                             addressdetails=True,
+                                             language='ru',
+                                             exactly_one=False
+                                             )
+
+        if len(locations)==1: return locations[0]
+        max_importance, place = 0, locations[0]
+
+        for l in locations:
+            if l.raw["importance"]>max_importance:
+                place = l
+                max_importance = l.raw['importance']
+        return place
+
+    except GeocoderTimedOut:
+        print("Geocoding service timed out.")
+        return None
