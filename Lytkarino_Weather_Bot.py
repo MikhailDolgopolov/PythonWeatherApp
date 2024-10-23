@@ -61,7 +61,7 @@ async def start(update: Update, context: CallbackContext) -> None:
         "Отправьте любое сообщение со словами 'сегодня' или 'завтра', и я отправлю соответствующий прогноз.\n"
         "Чтобы быстро выбрать другой день, отправьте 'погода' или 'прогноз'.")
     time.sleep(3)
-    await update.message.reply_text(f"Чтобы посмотреть погоду не в {inflect(default_city, 'loct')}, просто отправьте мне название города. \n"
+    await update.message.reply_text(f"Чтобы посмотреть погоду не в {inflect(default_city, 'loct').title()}, просто отправьте мне название города. \n"
                                     "Любое другое сообщение тоже позволит выбрать день.")
     time.sleep(3)
     await update.message.reply_text("Вот пример моей работы:")
@@ -169,7 +169,7 @@ async def find_city(update: Update, context: CallbackContext):
         await context.bot.send_message(update.effective_chat.id,
                                        text=f"Не получилось распознать '{update.message.text}' как город.")
         time.sleep(0.5)
-        return await days(update, context, text=f"Выберите день для прогноза в {inflect(context.chat_data['city'].split(', ')[0], 'loct')}:")
+        return await days(update, context, text=f"Выберите день для прогноза в {inflect(context.chat_data['city'].split(', ')[0], 'loct').title()}:")
 
 
 async def handle_city(update: Update, context: CallbackContext) -> int:
