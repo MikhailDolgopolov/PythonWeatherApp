@@ -6,11 +6,7 @@ import pandas as pd
 
 class BaseParser:
     def __init__(self, name):
-
         self.name = name
-
-        self.forecast_path = Path(f"forecast/{name}").resolve()
-        self.forecast_path.mkdir(parents=True, exist_ok=True)
 
     def _parse_weather(self, date: datetime, path: str) -> pd.DataFrame:
         raise NotImplementedError("Subclasses should implement this method")

@@ -37,5 +37,7 @@ RUN pip install --no-cache-dir -r requirements.txt
 # Copy the bot's source code into the container
 COPY --chown=myuser:myuser . .
 
+chown -R myuser:myuser /
+
 # Command to run the bot
 CMD ["python", "Lytkarino_Weather_Bot.py"]
