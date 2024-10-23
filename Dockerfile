@@ -13,7 +13,7 @@ RUN useradd -ms /bin/bash myuser
 USER myuser
 
 ENV MUSL_LOCPATH="/usr/share/i18n/locales/musl"
-RUN apk add --no-cache --update musl-locales
+RUN #apk add --no-cache --update musl-locales
 RUN apt update && apt install -y --no-install-recommends locales; rm -rf /var/lib/apt/lists/*; sed -i '/^#.* ru_RU.UTF-8 /s/^#//' /etc/locale.gen; locale-gen
 RUN SUDO update-locale
 
