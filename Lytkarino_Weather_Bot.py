@@ -61,7 +61,7 @@ async def start(update: Update, context: CallbackContext) -> None:
     time.sleep(3)
     await update.message.reply_text("Вот пример моей работы:")
     time.sleep(1)
-    await context.bot.send_photo(chat_id=update.message.chat_id, photo="demo.png")
+    await context.bot.send_photo(chat_id=update.message.chat_id, photo="data/images/demo.png")
     time.sleep(2)
     await update.message.reply_text("""На графике показаны:
     - температура из Open-Meteo.com
