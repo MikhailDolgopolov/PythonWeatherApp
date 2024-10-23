@@ -14,7 +14,7 @@ from telegram.ext import (
     CommandHandler,
     ConversationHandler,
     MessageHandler,
-    CallbackContext, filters, CallbackQueryHandler)
+    CallbackContext, filters, CallbackQueryHandler, TypeHandler)
 from telegram.warnings import PTBUserWarning
 
 from Day import Day
@@ -153,7 +153,7 @@ async def find_city(update: Update, context: CallbackContext):
         context.chat_data['cities_select'] = {coors[i]: addresses[i] for i in range(len(cities))}
 
         keyboard = [[InlineKeyboardButton(text=addresses[i], callback_data=coors[i])] for i in range(len(cities))]
-
+        keyboard.append([InlineKeyboardButton(text="Отменить", callback_data="cancel")])
         await context.bot.delete_message(update.message.chat_id, loading.message_id)
 
         await context.bot.send_message(update.effective_chat.id, "Выберите город, который имеете в виду:",
@@ -174,6 +174,10 @@ async def handle_city(update: Update, context: CallbackContext) -> int:
     query = update.callback_query
     await query.answer()
     loading = await context.bot.send_message(update.effective_chat.id, "Обрабатываю ваш выбор...")
+    if query.data == "cancel":
+        await context.bot.delete_message(update.effective_chat.id, loading.message_id)
+        await query.edit_message_text("Город не был изменён.", reply_markup=None)
+        return ConversationHandler.END
     full_city = context.chat_data['cities_select'][query.data]
     keyboard = [[InlineKeyboardButton(text=full_city, callback_data='None')]]
     await query.edit_message_text("Вы выбрали город", reply_markup=InlineKeyboardMarkup(keyboard))
@@ -256,7 +260,7 @@ def main() -> None:
             REPEAT: [CallbackQueryHandler(handle_again)],
             CHOOSING_CITY: [CallbackQueryHandler(handle_city)]
         },
-        fallbacks=entry_for_days
+        fallbacks=[TypeHandler(Update, internal_error)]
     )
 
     application.add_handler(days_handler)
