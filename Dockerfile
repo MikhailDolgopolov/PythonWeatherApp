@@ -1,5 +1,4 @@
-# Use the official Python image from Docker Hub
-FROM python:3.11-slim
+FROM python:stretch
 
 # Set environment variables to avoid prompts from Python
 ENV PYTHONDONTWRITEBYTECODE=1
@@ -12,10 +11,13 @@ RUN useradd -ms /bin/bash myuser
 
 USER myuser
 
-ENV MUSL_LOCPATH="/usr/share/i18n/locales/musl"
-RUN #apk add --no-cache --update musl-locales
+ENV TZ=Europe/Moscow
+RUN ln -snf /usr/share/zoneinfo/$TZ /etc/localtime && echo $TZ > /etc/timezone
+
+# Устанавливаем локаль
 RUN apt update && apt install -y --no-install-recommends locales; rm -rf /var/lib/apt/lists/*; sed -i '/^#.* ru_RU.UTF-8 /s/^#//' /etc/locale.gen; locale-gen
-RUN SUDO update-locale
+
+RUN locale -a
 
 ENV LANG ru_RU.UTF-8
 ENV LC_ALL ru_RU.UTF-8
