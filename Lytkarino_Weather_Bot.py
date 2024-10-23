@@ -20,7 +20,9 @@ from telegram.warnings import PTBUserWarning
 from Day import Day
 from Forecast import Forecast
 from ForecastRendering import render_forecast_data
+from Geography.CityNames import default_city
 from Geography.Geography import get_closest_city_matches
+from helpers import inflect
 
 filterwarnings(action="ignore", message=r".*CallbackQueryHandler", category=PTBUserWarning)
 
@@ -43,10 +45,13 @@ STOP_WORD = "OK"
 EMPTY = "[ пусто ]"
 
 
-def reset_data(context:CallbackContext):
+def reset_data(context:CallbackContext, persistent:dict=None):
+    if persistent is None:
+        persistent = {}
     context.chat_data.clear()
     context.chat_data["forecast"] = Forecast()
     context.chat_data["city"] = 'Лыткарино, Московская область'
+    context.chat_data.update(persistent)
 
 
 async def start(update: Update, context: CallbackContext) -> None:
@@ -56,7 +61,7 @@ async def start(update: Update, context: CallbackContext) -> None:
         "Отправьте любое сообщение со словами 'сегодня' или 'завтра', и я отправлю соответствующий прогноз.\n"
         "Чтобы быстро выбрать другой день, отправьте 'погода' или 'прогноз'.")
     time.sleep(3)
-    await update.message.reply_text("Чтобы посмотреть погоду не в Лыткарино, просто отправьте мне название города. \n"
+    await update.message.reply_text(f"Чтобы посмотреть погоду не в {inflect(default_city, 'loct')}, просто отправьте мне название города. \n"
                                     "Любое другое сообщение тоже позволит выбрать день.")
     time.sleep(3)
     await update.message.reply_text("Вот пример моей работы:")
@@ -131,9 +136,8 @@ async def handle_again(update: Update, context: CallbackContext):
 
 
 async def find_city(update: Update, context: CallbackContext):
-    cities = get_closest_city_matches(update.message.text)
     loading = await update.message.reply_text("Подождите...")
-
+    cities = get_closest_city_matches(update.message.text)
     if cities:
         coors = [str((loc.latitude, loc.longitude)) for loc in cities]
         data = [city.raw['address'] for city in cities]
@@ -165,7 +169,7 @@ async def find_city(update: Update, context: CallbackContext):
         await context.bot.send_message(update.effective_chat.id,
                                        text=f"Не получилось распознать '{update.message.text}' как город.")
         time.sleep(0.5)
-        return await days(update, context, text=f"Выберите день для прогноза в {context.chat_data['city'].split(', ')[0]}:")
+        return await days(update, context, text=f"Выберите день для прогноза в {inflect(context.chat_data['city'].split(', ')[0], 'loct')}:")
 
 
 async def handle_city(update: Update, context: CallbackContext) -> int:
@@ -200,8 +204,8 @@ async def get_city(update: Update, context: CallbackContext):
 
 
 async def ask_point(update: Update, context: CallbackContext):
-    if 'forecast' not in context.chat_data or 'city' not in context.chat_data: reset_data(context)
-    context.chat_data["edit_point"] = await update.message.reply_text("Точка получена. Подождите...")
+    persist = {"edit_point":await update.message.reply_text("Точка получена. Подождите...")}
+    if 'forecast' not in context.chat_data or 'city' not in context.chat_data: reset_data(context, persist)
 
 
     forecast:Forecast = context.chat_data['forecast']
