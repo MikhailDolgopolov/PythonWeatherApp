@@ -136,6 +136,9 @@ async def handle_again(update: Update, context: CallbackContext):
 
 
 async def find_city(update: Update, context: CallbackContext):
+    if 'city' not in context.chat_data or 'forecast' not in context.chat_data:
+        await context.bot.send_message(update.effective_chat.id, "Сначала введите /start")
+        return ConversationHandler.END
     loading = await update.message.reply_text("Подождите...")
     cities = get_closest_city_matches(update.message.text)
     if cities and len(cities)>0:
