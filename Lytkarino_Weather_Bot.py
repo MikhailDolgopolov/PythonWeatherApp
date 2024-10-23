@@ -34,7 +34,7 @@ urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
 logging.getLogger("urllib3").setLevel(logging.ERROR)
 
 # Telegram bot API token
-TOKEN = read_json("secrets.json")["telegram_token"]
+TOKEN = os.getenv('TELEGRAM_BOT_TOKEN')
 
 logger = logging.getLogger(__name__)
 
