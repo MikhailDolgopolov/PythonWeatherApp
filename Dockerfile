@@ -12,6 +12,21 @@ RUN useradd -ms /bin/bash myuser
 
 USER myuser
 
+# Install necessary packages for locales and sudo
+RUN apt-get update && apt-get install -y \
+    locales \
+    sudo \
+    && rm -rf /var/lib/apt/lists/*
+
+# Generate the desired locale (e.g., Russian)
+RUN locale-gen ru_RU.UTF-8
+
+## Set the locale environment variable
+#ENV LANG=ru_RU.UTF-8 \
+#    LANGUAGE=ru_RU:ru \
+#    LC_ALL=ru_RU.UTF-8
+
+
 # Copy the requirements file to the container
 COPY requirements.txt .
 
