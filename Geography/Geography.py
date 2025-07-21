@@ -5,7 +5,11 @@ from geopy import Nominatim, Location
 from geopy.exc import GeocoderTimedOut
 from geopy.distance import distance
 
-city_types = ['suburb', 'neighbourhood', 'city', 'village', 'town', 'residential', 'administrative']
+city_types = [
+    'suburb', 'neighbourhood', 'city', 'village', 'town', 'residential',
+    'hamlet', 'locality', 'isolated_dwelling', 'farm',
+    'administrative', 'state', 'region', 'county', 'province', 'district'
+]
 
 
 def verify_city(name):
@@ -53,98 +57,90 @@ def get_location(address: str) -> Location|None:
 def get_closest_city_matches(input_name, max_results=6) -> list[Location]:
     geolocator = Nominatim(user_agent="city_name_detector")
 
-
     try:
-        # Geocode the input to get potential city matches
-        locations = geolocator.geocode(input_name,
-                                       addressdetails=True,
-                                       language='ru',
-                                       featuretype='city',
-                                       exactly_one=False, limit=6)
-        if locations is None:
+        locations = geolocator.geocode(
+            input_name,
+            addressdetails=True,
+            language='ru',
+            exactly_one=False,
+            limit=10
+        )
+        if not locations:
             return []
-        locations = [loc for loc in locations if loc.raw['type'] in
-                     city_types]
+
+        # Prioritize locations by type
+        prioritized = sorted(
+            locations,
+            key=lambda loc: (
+                loc.raw.get('type') in ['city', 'town', 'village'],
+                loc.raw.get('type') in city_types,
+                loc.raw.get('importance', 0)
+            ),
+            reverse=True
+        )
+
+        # Deduplicate (by rounded coords)
         seen = set()
         unique_locations = []
-
-        for location in locations:
-            # Use (latitude, longitude) as a unique identifier
-            identifier = (round(location.latitude,1), round(location.longitude, 1))
-
+        for loc in prioritized:
+            identifier = (round(loc.latitude, 3), round(loc.longitude, 3))
             if identifier not in seen:
                 seen.add(identifier)
-                unique_locations.append(location)
+                unique_locations.append(loc)
 
-        locations:list[Location] = unique_locations
-        return locations[:max_results]
+        return unique_locations[:max_results]
 
     except GeocoderTimedOut:
         print("Geocoding service timed out.")
         return []
 
 
-def distance_between_cities(point:str, target:str) ->float:
+def distance_between_places(point: str, target: str) -> float:
     geolocator = Nominatim(user_agent="city_name_detector")
 
     try:
-        # Geocode the input to get potential city matches
-        start:Location = geolocator.geocode(point,
-                                       # country_codes='RU',
-                                       addressdetails=True,
-                                       language='ru',
-                                       featuretype='city')
-        end: Location = geolocator.geocode(target,
-                                   # country_codes='RU',
-                                   addressdetails=True,
-                                   language='ru',
-                                   featuretype='city')
+        start = geolocator.geocode(
+            point,
+            addressdetails=True,
+            language='ru'
+        )
+        end = geolocator.geocode(
+            target,
+            addressdetails=True,
+            language='ru'
+        )
 
-        if start is None or end is None:
-            return 20000
-
-        return distance((start.latitude, start.longitude), (end.latitude, end.longitude)).km
+        if start and end:
+            return distance(
+                (start.latitude, start.longitude),
+                (end.latitude, end.longitude)
+            ).km
+        return float('inf')  # Unreachable
     except GeocoderTimedOut:
         print("Geocoding service timed out.")
-        return 20000
+        return float('inf')
 
 
-# def find_closest_city(target_city: str, cities: List[str], threshold=15) -> str | None:
-#     closest_city = cities[0]
-#     min_distance = float('inf')  # Initialize to a large number
-#
-#     for city in cities:
-#         dist = distance_between_cities(city, target_city)
-#         if dist < threshold:
-#             return city
-#         if dist < min_distance:
-#             min_distance = dist
-#             closest_city = city
-#
-#     if closest_city is None: closest_city=cities[0]
-#     if min_distance>threshold: return None
-#     return closest_city
-
-def what_is_there(point: str|tuple) -> Location|None:
-    geolocator = Nominatim(user_agent="place finder")
-
+def what_is_there(point: str | tuple) -> Location | None:
+    geolocator = Nominatim(user_agent="place_finder")
     try:
-        # Geocode the input to get potential city matches
-        locations = geolocator.reverse(point,
-                                             addressdetails=True,
-                                             language='ru',
-                                             exactly_one=False
-                                             )
+        locations = geolocator.reverse(
+            point,
+            addressdetails=True,
+            language='ru',
+            exactly_one=False
+        )
+        if not locations:
+            return None
 
-        if len(locations)==1: return locations[0]
-        max_importance, place = 0, locations[0]
-
-        for l in locations:
-            if l.raw["importance"]>max_importance:
-                place = l
-                max_importance = l.raw['importance']
-        return place
-
+        # Prefer places with a name and higher importance
+        places = sorted(
+            locations,
+            key=lambda loc: (bool(loc.raw['address'].get('city') or loc.raw['address'].get('state')),
+                             loc.raw.get('importance', 0)),
+            reverse=True
+        )
+        return places[0]
     except GeocoderTimedOut:
         print("Geocoding service timed out.")
         return None

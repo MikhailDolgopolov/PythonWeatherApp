@@ -11,5 +11,5 @@ from helpers import random_delay
 
 f = Forecast()
 d = datetime.today()
-render_forecast_data(f.fetch_forecast(d), d, city=f.place.display_name, save=True)
+render_forecast_data(f.fetch_forecast(d), d, city=f.place_name, save=False)
 

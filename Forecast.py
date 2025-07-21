@@ -18,27 +18,29 @@ pd.set_option('display.max_colwidth', 50)  # Set the max column width to 50 char
 
 
 class Forecast:
-    def __init__(self):
-        self.parser:OpenmeteoParser = OpenmeteoParser()
-        self.place = Place(default_city)
+    def __init__(self, default_city: str = "Лыткарино, Московская область"):
+        # by default, load for your home point
+        self.parser = OpenmeteoParser()
+        self.place_name = default_city
 
     def fetch_forecast(self, date: datetime) -> pd.DataFrame:
         return self.parser.get_weather(date)
 
-    def last_updated(self, date) -> datetime:
+    def last_updated(self, date: datetime = None) -> datetime:
         return self.parser.get_last_forecast_update(date)
 
     def find_city(self, city: str) -> Self:
-        self.place.set_new_location(city)
+        self.place_name = city
         self.parser.find_city(city)
         return self
 
-    def point_info(self, point_tuple):
-        point_tuple = tuple(float(num) for num in point_tuple.split(","))
-        d = geodesic(self.place.coords, point_tuple).kilometers
-        return round(d, 1)
+    def point_info(self, point_str: str) -> float:
+        """Distance in km between current place and point_str='lat,lon'."""
+        lat, lon = map(float, point_str.split(","))
+        # you’ll need to store self.place_coords when find_city is called:
+        src_coords = (self.parser._params["latitude"], self.parser._params["longitude"])
+        return round(geodesic(src_coords, (lat, lon)).km, 1)
 
-    def set_openmeteo_point(self, point_tuple):
-        point_tuple = tuple(float(num) for num in point_tuple.split(","))
-        self.place.set_new_point(point_tuple)
-        self.parser.set_params(point_tuple)
+    def set_openmeteo_point(self, point_str: str):
+        lat, lon = map(float, point_str.split(","))
+        self.parser.set_params((lat, lon))

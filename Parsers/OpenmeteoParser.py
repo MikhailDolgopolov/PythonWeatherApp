@@ -1,5 +1,5 @@
 from datetime import datetime, timedelta
-from typing import Self
+from typing import Self, List, Tuple
 
 import numpy as np
 import openmeteo_requests
@@ -9,7 +9,6 @@ from retry_requests import retry
 
 from Geography.Geography import get_coordinates
 from MetadataController import MetadataController
-from Parsers.BaseParser import BaseParser
 from Parsers.SeekParser import SeekParser
 from helpers import my_point
 
@@ -24,73 +23,108 @@ openmeteo = openmeteo_requests.Client(session=retry_session)
 
 
 class OpenmeteoParser(SeekParser):
-    def __init__(self):
+    def __init__(
+        self,
+        latitude: float = None,
+        longitude: float = None,
+        timezone: str = "Europe/Moscow",
+        hourly_vars: List[str] = None,
+        daily_vars: List[str] = None,
+        forecast_days: int = 8,
+    ):
         super().__init__(name="Openmeteo")
-        self.__url = "https://api.open-meteo.com/v1/forecast"
-        p = my_point()
-        self.__params = {
-            "latitude": p[0],
-            "longitude": p[1],
-            "hourly": ["temperature_2m", "precipitation", "wind_speed_10m"],
-            "wind_speed_unit": "ms",
-            "timezone": "Europe/Moscow",
-            "forecast_days": 8
-        }
-        self._load_weather()
+        # initial point
+        if latitude is None or longitude is None:
+            latitude, longitude = my_point()
+        self.timezone = timezone
+        self.hourly_vars = hourly_vars or ["temperature_2m", "precipitation", "wind_speed_10m", 'weathercode']
+        self.daily_vars = daily_vars or ["sunrise", "sunset", "weathercode"]
+        self.forecast_days = forecast_days
 
-    def _load_weather(self):
-        # print("Loading OpenMeteo...")
-        response = openmeteo.weather_api(self.__url, params=self.__params)[0]
-        hourly = response.Hourly()
-        hourly_temperature_2m = hourly.Variables(0).ValuesAsNumpy()
-        hourly_precipitation = hourly.Variables(1).ValuesAsNumpy()
-        hourly_wind_speed_10m = hourly.Variables(2).ValuesAsNumpy()
+        self._set_base_params(latitude, longitude)
+        self._last_reload: datetime = datetime.min
+        self._full_df: pd.DataFrame = pd.DataFrame()
+        # self._daily_df: pd.DataFrame = pd.DataFrame()
+        self._reload_if_needed(force=True)
+
+    def _set_base_params(self, lat: float, lon: float):
+        self._params = {
+            "latitude": lat,
+            "longitude": lon,
+            "hourly": self.hourly_vars,
+            "daily": self.daily_vars,
+            "wind_speed_unit": "ms",
+            "timezone": self.timezone,
+            "forecast_days": self.forecast_days,
+        }
+
+    def _reload_if_needed(self, force: bool = False):
+        """Reload from API if data is stale or forced."""
+        stale_after = timedelta(hours=MetadataController.due())
+        if force or (datetime.now() - self._last_reload) > stale_after:
+            resp = openmeteo.weather_api(
+                "https://api.open-meteo.com/v1/forecast",
+                params=self._params
+            )[0]
+            self._parse_response(resp)
+            self._last_reload = datetime.now()
+
+    def _parse_response(self, resp):
+        """Extract hourly & daily data into DataFrames."""
+
+        # — Hourly —
+        hourly = resp.Hourly()
 
         hourly_data = {"date": pd.date_range(
-            start=pd.to_datetime(hourly.Time(), unit="s", utc=True),
-            end=pd.to_datetime(hourly.TimeEnd(), unit="s", utc=True),
+            start=pd.to_datetime(hourly.Time(), unit="s"),
+            end=pd.to_datetime(hourly.TimeEnd(), unit="s"),
             freq=pd.Timedelta(seconds=hourly.Interval()),
             inclusive="left"
-        ), "temperature_2m": hourly_temperature_2m, "precipitation": hourly_precipitation,
-            "wind_speed_10m": hourly_wind_speed_10m}
+        ).tz_localize(self.timezone)}
 
-        df = pd.DataFrame(data=hourly_data)
-        df["date"] = pd.to_datetime(df['date']).dt.tz_convert('Europe/Moscow')
-        df = df.rename({"temperature_2m": "temperature", "wind_speed_10m": "wind-speed"}, axis=1)
-        self.__full_dataframe = df
-        self.__update_time = datetime.now()
+        # hourly_data["temperature_2m"] = hourly_temperature_2m
+
+        for i, var in enumerate(self.hourly_vars):
+            hourly_data[var] = hourly.Variables(i).ValuesAsNumpy()
+
+        hr_df = pd.DataFrame(data=hourly_data)
+        # rename columns to your simpler names
+        hr_df = hr_df.rename(columns=lambda c: c
+                             .replace("_2m", "")
+                             .replace("wind_speed_10m", "wind_speed"))
+        hr_df = hr_df.set_index("date")
+
+
+        # stash
+        self._full_df = hr_df
 
     def get_weather(self, date: datetime) -> pd.DataFrame:
-        if (datetime.now().date()-self.__update_time.date()) > timedelta(hours=MetadataController.due()):
-            self._load_weather()
-        start_of_day = pd.Timestamp(date.date()).tz_localize('Europe/Moscow')
-        end_of_day = start_of_day + pd.Timedelta(days=1)
-        data = self.__full_dataframe[
-            (self.__full_dataframe['date'] >= start_of_day) & (self.__full_dataframe['date'] < end_of_day)]
-        data.insert(0, "time", data["date"].dt.hour)
-        data = data.drop("date", axis=1).reset_index(drop=True)
+        """
+        Return the hourly data for the given date (0–23h).
+        """
+        self._reload_if_needed()
+        day_start = pd.Timestamp(date.date(), tz=self.timezone)
+        day_end = day_start + pd.Timedelta(days=1)
+        # print(self._full_df)
+        df = self._full_df.loc[day_start:day_end - pd.Timedelta(seconds=1)].copy()
+        df["hour"] = df.index.hour
+        return df.reset_index(drop=True)
 
-        return data
+    def get_last_forecast_update(self, date: datetime = None) -> datetime:
+        return self._last_reload
 
-    def set_params(self, p=None):
-        if not p: p = my_point()
-        self.__params = {
-            "latitude": p[0],
-            "longitude": p[1],
-            "hourly": ["temperature_2m", "precipitation", "wind_speed_10m"],
-            "wind_speed_unit": "ms",
-            "timezone": "Europe/Moscow",
-            "forecast_days": 10
-        }
-        self._load_weather()
-
-    def get_last_forecast_update(self, date) -> datetime:
-        return self.__update_time
+    def set_params(self, p: Tuple[float, float] = None):
+        """Manually update point & reload immediately."""
+        if p is None:
+            p = my_point()
+        lat, lon = p
+        self._set_base_params(lat, lon)
+        self._reload_if_needed(force=True)
 
     def find_city(self, name: str) -> Self:
-        self.home = 'лыткарино' in name.lower()
-        p = get_coordinates(name)
-        self.__params['latitude'] = p[0]
-        self.__params['longitude'] = p[1]
-        self._load_weather()
+        """Lookup coords by name, update params & reload."""
+        coords = get_coordinates(name)
+        if coords:
+            self._set_base_params(*coords)
+            self._reload_if_needed(force=True)
         return self

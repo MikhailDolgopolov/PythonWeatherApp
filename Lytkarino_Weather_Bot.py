@@ -1,19 +1,23 @@
-
 import os
-from datetime import datetime, timedelta, date
-import logging
 import re
-import time
+import asyncio
+import logging
+from datetime import datetime, timedelta, date
+from warnings import filterwarnings
 
 import urllib3
-from telegram import Update, InlineKeyboardMarkup, InlineKeyboardButton, CallbackQuery, Message
+from telegram import Update, InlineKeyboardMarkup, InlineKeyboardButton, Message
 from telegram.ext import (
     Application,
     PicklePersistence,
     CommandHandler,
     ConversationHandler,
     MessageHandler,
-    CallbackContext, filters, CallbackQueryHandler)
+    CallbackQueryHandler,
+    ContextTypes,
+    filters,
+)
+from telegram.warnings import PTBUserWarning
 
 from Day import Day
 from Forecast import Forecast
@@ -21,250 +25,273 @@ from ForecastRendering import render_forecast_data
 from Geography.Geography import get_closest_city_matches
 from helpers import read_json
 
-from warnings import filterwarnings
-from telegram.warnings import PTBUserWarning
-
+# Suppress PTB warning about CallbackQueryHandler filters
 filterwarnings(action="ignore", message=r".*CallbackQueryHandler", category=PTBUserWarning)
 
 # Set up logging
-logging.basicConfig(format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
-                    level=logging.INFO)
+logging.basicConfig(
+    format="%(asctime)s - %(name)s - %(levelname)s - %(message)s",
+    level=logging.INFO,
+)
 logging.getLogger("httpx").setLevel(logging.WARNING)
-urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
 logging.getLogger("urllib3").setLevel(logging.ERROR)
+urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
 
-# Telegram bot API token
 TOKEN = read_json("secrets.json")["telegram_token"]
-
 logger = logging.getLogger(__name__)
 
-CHOOSING_SETTING, R_SETTINGS, T_SETTINGS, = 0, 1, 2
-CHOOSING_DAY, REPEAT = 3, 4
-CHOOSING_CITY = 5
+# Conversation states
+CHOOSING_SETTING, R_SETTINGS, T_SETTINGS = range(3)
+CHOOSING_DAY, REPEAT, CHOOSING_CITY = range(3, 6)
 STOP_WORD = "OK"
 EMPTY = "[ пусто ]"
 
 
-def reset_data(context:CallbackContext):
+def reset_data(context: ContextTypes.DEFAULT_TYPE):
     context.chat_data.clear()
     context.chat_data["forecast"] = Forecast()
-    context.chat_data["city"] = 'Лыткарино, Московская область'
+    context.chat_data["city"] = "Лыткарино, Московская область"
 
 
-async def start(update: Update, context: CallbackContext) -> None:
-    await update.message.reply_text('Привет!')
-    time.sleep(1)
-    await update.message.reply_text(
+async def start(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    chat_id = update.effective_chat.id
+    await context.bot.send_message(chat_id, "Привет!")
+    await asyncio.sleep(1)
+    await context.bot.send_message(
+        chat_id,
         "Отправьте любое сообщение со словами 'сегодня' или 'завтра', и я отправлю соответствующий прогноз.\n"
-        "Чтобы быстро выбрать другой день, отправьте 'погода' или 'прогноз'.")
-    time.sleep(3)
-    await update.message.reply_text("Чтобы посмотреть погоду не в Лыткарино, просто отправьте мне название города. \n"
-                                    "Любое другое сообщение тоже позволит выбрать день.")
-    time.sleep(3)
-    await update.message.reply_text("Вот пример моей работы:")
-    time.sleep(1)
-    await context.bot.send_photo(chat_id=update.message.chat_id, photo="demo.png")
-    time.sleep(2)
-    await update.message.reply_text("""На графике показаны:
-    - температура из Open-Meteo.com
-    - количество осадков в час
-    - световой день
-    """)
-
+        "Чтобы быстро выбрать другой день, отправьте 'погода' или 'прогноз'."
+    )
+    await asyncio.sleep(3)
+    await context.bot.send_message(
+        chat_id,
+        "Чтобы посмотреть погоду не в Лыткарино, просто отправьте мне название города. \n"
+        "Любое другое сообщение тоже позволит выбрать день."
+    )
+    await asyncio.sleep(3)
+    await context.bot.send_message(chat_id, "Вот пример моей работы:")
+    await asyncio.sleep(1)
+    await context.bot.send_photo(chat_id=chat_id, photo="demo.png")
+    await asyncio.sleep(2)
+    await context.bot.send_message(
+        chat_id,
+        "На графике показаны:\n"
+        "- температура из Open-Meteo.com\n"
+        "- количество осадков в час\n"
+        "- световой день"
+    )
     reset_data(context)
 
 
-
-
-async def send(thing: Update, context: CallbackContext, forecast_date: datetime) -> int:
+async def send(
+        thing: Update | Message, context: ContextTypes.DEFAULT_TYPE, forecast_date: datetime
+) -> int:
     chat_id = thing.effective_chat.id
-    initial_message = await context.bot.send_message(chat_id, text='Это может занять некоторое время...')
-    if 'city' not in context.chat_data or 'forecast' not in context.chat_data:
+    loading = await context.bot.send_message(chat_id, "Это может занять некоторое время...")
+    if "city" not in context.chat_data or "forecast" not in context.chat_data:
         reset_data(context)
 
-    forecast = context.chat_data['forecast']
-    pic = render_forecast_data(forecast.fetch_forecast(forecast_date), forecast_date,
-                               city=context.chat_data.get('city', None), uid=chat_id)
+    forecast: Forecast = context.chat_data["forecast"]
+    pic = render_forecast_data(
+        forecast.fetch_forecast(forecast_date),
+        forecast_date,
+        city=context.chat_data.get("city", None),
+        uid=chat_id,
+    )
 
-    await context.bot.send_photo(chat_id=chat_id, photo=pic["path"], caption=forecast.last_updated(forecast_date).strftime(
-        "Данные в последний раз обновлены %d.%m.%Y, в %H:%M"))
-    await initial_message.delete()
+    caption = forecast.last_updated(forecast_date).strftime(
+        "Данные в последний раз обновлены %d.%m.%Y, в %H:%M"
+    )
+    await context.bot.send_photo(chat_id=chat_id, photo=pic["path"], caption=caption)
+    await loading.delete()
     os.remove(pic["path"])
 
     keyboard = [[InlineKeyboardButton("Выбрать день", callback_data="again")]]
-    time.sleep(1)
-    await context.bot.send_message(chat_id, text="прогноз на 9 дней вперед", reply_markup=InlineKeyboardMarkup(keyboard))
-
+    await asyncio.sleep(1)
+    await context.bot.send_message(
+        chat_id,
+        "прогноз на 9 дней вперед",
+        reply_markup=InlineKeyboardMarkup(keyboard),
+    )
     return CHOOSING_DAY
 
-async def days(update: Update, context: CallbackContext, text:str=None) -> int:
-    dates: list[date] = [datetime.today().date() + timedelta(days=i) for i in range(10)]
-    date_names = {dates[0].strftime('%Y%m%d'): f"сегодня, {dates[0].strftime('%d.%m')}",
-                  dates[1].strftime('%Y%m%d'): f"завтра, {dates[1].strftime('%d.%m')}"}
+
+async def days(update: Update, context: ContextTypes.DEFAULT_TYPE, text: str = None) -> int:
+    today = date.today()
+    dates = [today + timedelta(days=i) for i in range(10)]
+    date_names = {
+        dates[0].strftime("%Y%m%d"): f"сегодня, {dates[0]:%d.%m}",
+        dates[1].strftime("%Y%m%d"): f"завтра, {dates[1]:%d.%m}",
+    }
     for i in range(2, 10):
-        date_names[dates[i].strftime('%Y%m%d')] = dates[i].strftime('%a, %d.%m')
+        date_names[dates[i].strftime("%Y%m%d")] = dates[i].strftime("%a, %d.%m")
 
-    keys = list(date_names.keys())
-    row1 = [InlineKeyboardButton(date_names[key], callback_data=key) for key in keys[:5]]
-    row2 = [InlineKeyboardButton(date_names[key], callback_data=key) for key in keys[5:]]
+    keys = list(date_names)
+    row1 = [InlineKeyboardButton(date_names[k], callback_data=k) for k in keys[:5]]
+    row2 = [InlineKeyboardButton(date_names[k], callback_data=k) for k in keys[5:]]
     keyboard = [row1, row2]
-    if not text: text = "Выберите день: "
-    await context.bot.send_message(update.effective_chat.id, text, reply_markup=InlineKeyboardMarkup(keyboard), )
+
+    prompt = text or "Выберите день:"
+    await context.bot.send_message(
+        update.effective_chat.id,
+        prompt,
+        reply_markup=InlineKeyboardMarkup(keyboard),
+    )
     return CHOOSING_DAY
 
 
-async def handle_day(update: Update, context: CallbackContext) -> int:
+async def handle_day(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
     query = update.callback_query
     await query.answer()
     d = datetime.strptime(query.data, "%Y%m%d")
     day = Day(d)
     await query.edit_message_text(f"Выбрано {day.D_month}, {day.day_name}")
-    await send(update, context, d)
-
-    return CHOOSING_DAY
+    return await send(update, context, d)
 
 
-async def handle_again(update: Update, context: CallbackContext):
+async def handle_again(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
     query = update.callback_query
     await query.answer()
     if query.data == "again":
         await query.message.delete()
-        return await days(update, context)
-
-
-async def find_city(update: Update, context: CallbackContext):
-    cities = get_closest_city_matches(update.message.text)
-    loading = await update.message.reply_text("Подождите...")
-
-    if cities:
-        coors = [str((loc.latitude, loc.longitude)) for loc in cities]
-        data = [city.raw['address'] for city in cities]
-
-        names = [address.get('city') or address.get('town') or address.get('village')
-                 or address.get('neighbourhood') or address.get('suburb') for address in data]
-        states = [
-            address.get('state') or address.get('region') or address.get('county') or address.get('state_district')
-            for address in data]
-        try:
-            states = [data[i].get('region') or data[i].get('state_district') or data[i].get('county')
-                      if names[i] in states[i] else states[i] for i in range(len(cities))]
-        except: pass
-        states = [f"{states[i]}, {data[i]['country']}" if len(states[i])<20 else states[i] for i in range(len(cities))]
-        addresses = [f"{names[i]}, {states[i]}" if states[i] else names[i] for i in range(len(cities))]
-
-        context.chat_data['cities_select'] = {coors[i]: addresses[i] for i in range(len(cities))}
-
-        keyboard = [[InlineKeyboardButton(text=addresses[i], callback_data=coors[i])] for i in range(len(cities))]
-
-        await context.bot.delete_message(update.message.chat_id, loading.message_id)
-
-        await context.bot.send_message(update.effective_chat.id, "Выберите город, который имеете в виду:",
-                                        reply_markup=InlineKeyboardMarkup(keyboard))
-
-        return CHOOSING_CITY
-    else:
-        await context.bot.delete_message(update.effective_chat.id, loading.message_id)
-        await context.bot.send_message(update.effective_chat.id,
-                                       text=f"Не получилось распознать '{update.message.text}' как город.")
-        time.sleep(0.5)
-        return await days(update, context, text=f"Выберите день для прогноза в {context.chat_data['city'].split(', ')[0]}:")
-
-
-async def handle_city(update: Update, context: CallbackContext) -> int:
-    if 'city' not in context.chat_data or 'forecast' not in context.chat_data:
-        reset_data(context)
-    query = update.callback_query
-    await query.answer()
-    loading = await context.bot.send_message(update.effective_chat.id, "Обрабатываю ваш выбор...")
-    full_city = context.chat_data['cities_select'][query.data]
-    keyboard = [[InlineKeyboardButton(text=full_city, callback_data='None')]]
-    await query.edit_message_text("Вы выбрали город", reply_markup=InlineKeyboardMarkup(keyboard))
-    return await click_city(update, context, full_city, loading)
-
-async def click_city(update:Update, context: CallbackContext, address: str, message:Message=None) -> int:
-    if 'city' not in context.chat_data or 'forecast' not in context.chat_data:
-        reset_data(context)
-    context.chat_data['city'] = address
-
-    context.chat_data['forecast'] = context.chat_data['forecast'].find_city(address)
-    if message: await context.bot.delete_message(update.effective_chat.id, message.message_id)
     return await days(update, context)
 
 
-async def get_city(update: Update, context: CallbackContext):
-    if 'city' not in context.chat_data: reset_data(context)
-    city = context.chat_data['city']
+async def find_city(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
+    text = update.message.text
+    matches = get_closest_city_matches(text)
+    loading = await update.message.reply_text("Подождите...")
+    if not matches:
+        await loading.delete()
+        await context.bot.send_message(
+            update.effective_chat.id,
+            f"Не получилось распознать '{text}' как город."
+        )
+        return await days(
+            update, context,
+            text=f"Выберите день для прогноза в {context.chat_data.get('city', '')}:"
+        )
+
+    coords = [f"{loc.latitude},{loc.longitude}" for loc in matches]
+    addresses = []
+    for loc in matches:
+        addr = loc.raw["address"]
+        name = addr.get("city") or addr.get("town") or addr.get("village") or addr.get("suburb")
+        region = addr.get("state") or addr.get("region") or addr.get("county")
+        country = addr.get("country")
+        addresses.append(f"{name}, {region}, {country}")
+
+    context.chat_data["cities_select"] = dict(zip(coords, addresses))
+    keyboard = [[InlineKeyboardButton(addresses[i], callback_data=coords[i])]
+                for i in range(len(coords))]
+
+    await loading.delete()
+    await context.bot.send_message(
+        update.effective_chat.id,
+        "Выберите город, который имеете в виду:",
+        reply_markup=InlineKeyboardMarkup(keyboard),
+    )
+    return CHOOSING_CITY
+
+
+async def handle_city(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
+    query = update.callback_query
+    await query.answer()
+    coord = query.data
+    address = context.chat_data["cities_select"].get(coord)
+    if not address:
+        return await days(update, context)
+    await query.edit_message_text(f"Вы выбрали город: {address}")
+    # update forecast and city
+    context.chat_data["city"] = address
+    context.chat_data["forecast"] = context.chat_data["forecast"].find_city(address)
+    return await days(update, context)
+
+
+async def get_city(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    city = context.chat_data.get("city", "Лыткарино, Московская область")
     await update.message.reply_text(f"В данный момент выбран город {city}")
 
 
-async def ask_point(update: Update, context: CallbackContext):
+async def ask_point(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
+    text = update.message.text.strip()
+    loading = await update.message.reply_text("Точка получена. Подождите...")
+    forecast: Forecast = context.chat_data.get("forecast", Forecast())
+    result = forecast.point_info(text)
+    await loading.delete()
 
-    context.chat_data["edit_point"] = await update.message.reply_text("Точка получена. Подождите...")
-
-    if 'forecast' not in context.chat_data: reset_data(context)
-    forecast:Forecast = context.chat_data['forecast']
-    coords = update.message.text
-    point = forecast.point_info(coords)
-
-    if isinstance(point, str):
+    if isinstance(result, str):
+        await update.message.reply_text(result)
         return ConversationHandler.END
-    if isinstance(point, float):
-        keyboard = [[InlineKeyboardButton(text=STOP_WORD, callback_data=coords), InlineKeyboardButton(text="Отменить", callback_data="cancel")]]
-        await context.bot.send_message(update.effective_chat.id, f"Расстояние от этой точки до выбранной сейчас — {point} км. Утвердить точку?",
-                                       reply_markup=InlineKeyboardMarkup(keyboard))
+    if isinstance(result, float):
+        keyboard = [
+            InlineKeyboardButton(STOP_WORD, callback_data=text),
+            InlineKeyboardButton("Отменить", callback_data="cancel")
+        ]
+        await update.message.reply_text(
+            f"Расстояние от этой точки до выбранной сейчас — {result:.1f} км. Утвердить точку?",
+            reply_markup=InlineKeyboardMarkup([keyboard])
+        )
+        return REPEAT
 
 
-async def internal_error(update: Update, context: CallbackContext):
-    await context.bot.send_message(update.effective_chat.id, "Извините, что-то пошло не так.")
-
-async def set_point(update:Update, context:CallbackContext):
+async def set_point(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
     query = update.callback_query
     await query.answer()
     if query.data == "cancel":
-        await context.bot.edit_message_text(chat_id = query.message.chat_id, message_id=context.chat_data["edit_point"].id, text="Точка не была установлена.")
-        await query.message.delete()
+        await query.edit_message_text("Точка не была установлена.")
         return ConversationHandler.END
-    await context.bot.send_message(update.effective_chat.id, f"Подождите...")
-    context.chat_data["forecast"].set_openmeteo_point(query.data)
-    await context.bot.send_message(update.effective_chat.id, f"Точка установлена: {context.chat_data['forecast'].place.full_str()}")
+
+    coords = query.data
+    context.chat_data["forecast"].set_openmeteo_point(coords)
+    place = context.chat_data["forecast"].place.full_str()
+    await query.edit_message_text(f"Точка установлена: {place}")
     return await days(update, context)
 
 
-
 def main() -> None:
-    persistence = PicklePersistence(filepath='bot_persitence', update_interval=5)
-    application = Application.builder().token(TOKEN).persistence(persistence).build()
-    application.add_handler(CommandHandler("start", start))
-    application.add_handler(MessageHandler(filters.Regex(re.compile('город', re.IGNORECASE)), get_city))
-    application.add_handler(MessageHandler(filters.Regex(re.compile('прогноз|погода', re.IGNORECASE)), days))
+    persistence = PicklePersistence(filepath="bot_persistence", update_interval=5)
+    app = Application.builder().token(TOKEN).persistence(persistence).build()
 
-    application.add_handler(
-        MessageHandler(filters.Regex(re.compile(r'^(?!.*завтра)сегодня(?!.*завтра).*$', re.IGNORECASE)),
-                       lambda update, context: send(update, context, datetime.today())))
-    application.add_handler(
-        MessageHandler(filters.Regex(re.compile(r'^(?!.*сегодня)завтра(?!.*сегодня).*$', re.IGNORECASE)),
-                       lambda update, context: send(update, context, datetime.today() + timedelta(days=1))))
+    app.add_handler(CommandHandler("start", start))
+    app.add_handler(MessageHandler(filters.Regex(re.compile("город", re.IGNORECASE)), get_city))
+    app.add_handler(MessageHandler(filters.Regex(re.compile("прогноз|погода", re.IGNORECASE)), days))
 
-    coords_regex = r"-?\d{1,2}\.\d+,\s+-?\d{1,2}\.\d+"
-    application.add_handler(MessageHandler(filters.Regex(coords_regex), ask_point))
-
-    application.add_handler(CallbackQueryHandler(set_point, pattern="|".join([coords_regex, "cancel"])))
-    entry_for_days = [MessageHandler(filters.TEXT & ~filters.COMMAND, find_city),
-                      CallbackQueryHandler(handle_again, pattern=r'again')]
-    days_handler = ConversationHandler(
-        entry_points=entry_for_days,
-        states={
-            CHOOSING_DAY: [CallbackQueryHandler(handle_day, pattern=r'\d{6,8}')],
-            REPEAT: [CallbackQueryHandler(handle_again)],
-            CHOOSING_CITY: [CallbackQueryHandler(handle_city)]
-        },
-        fallbacks=entry_for_days
+    app.add_handler(
+        MessageHandler(
+            filters.Regex(re.compile(r"^(?!.*завтра)сегодня", re.IGNORECASE)),
+            lambda u, c: send(u, c, datetime.now())
+        )
+    )
+    app.add_handler(
+        MessageHandler(
+            filters.Regex(re.compile(r"^(?!.*сегодня)завтра", re.IGNORECASE)),
+            lambda u, c: send(u, c, datetime.now() + timedelta(days=1))
+        )
     )
 
-    application.add_handler(days_handler)
+    coord_pattern = r"^-?\d{1,2}\.\d+,-?\d{1,2}\.\d+$"
+    app.add_handler(MessageHandler(filters.Regex(coord_pattern), ask_point))
+    app.add_handler(CallbackQueryHandler(set_point, pattern=f"({coord_pattern}|cancel)"))
 
-    # Run the bot until the user presses Ctrl-C
-    application.run_polling(allowed_updates=Update.ALL_TYPES)
+    conv = ConversationHandler(
+        entry_points=[
+            MessageHandler(filters.TEXT & ~filters.COMMAND, find_city),
+            CallbackQueryHandler(handle_again, pattern="^again$")
+        ],
+        states={
+            CHOOSING_DAY: [CallbackQueryHandler(handle_day, pattern=r"^\d{6,8}$")],
+            REPEAT: [CallbackQueryHandler(set_point, pattern=f"^{coord_pattern}$|^cancel$")],
+            CHOOSING_CITY: [CallbackQueryHandler(handle_city)],
+        },
+        fallbacks=[
+            MessageHandler(filters.TEXT & ~filters.COMMAND, find_city),
+            CallbackQueryHandler(handle_again, pattern="^again$")
+        ],
+    )
+    app.add_handler(conv)
+
+    app.run_polling(allowed_updates=Update.ALL_TYPES)
 
 
 if __name__ == "__main__":

@@ -1,93 +1,156 @@
-import os
-from datetime import datetime, timedelta
-
-import pandas as pd
 import numpy as np
-
 import matplotlib
-matplotlib.use('Agg')
-from matplotlib import pyplot as plt
+from matplotlib import pyplot as plt, patches, lines
 import seaborn as sns
 
+from datetime import datetime
 from Day import Day
-from Forecast import Forecast
-from helpers import check_and_add_numbers
 
-sns.set_style("whitegrid")
-pd.set_option('display.width', 200)  # Increase the width to 200 characters
-pd.set_option('display.max_columns', 10)  # Increase the number of columns to display to 10
-pd.set_option('display.max_colwidth', 50)  # Set the max column width to 50 characters
+plt.style.use('seaborn-v0_8-whitegrid')
+
+WEATHER_CAT = {
+    **dict.fromkeys([0],           "clear"),
+    **dict.fromkeys([1, 2, 3],    "partly_cloudy"),
+    **dict.fromkeys([45, 48, 51, 53, 55, 61, 63, 65, 71, 73, 75, 95], "overcast"),
+}
+COLORS = {
+    "clear":         "#fff5ba",
+    "partly_cloudy": "#d0ebff",
+    "overcast":      "#d3d3d3",
+    "temp_line":     "#444444",
+    "precipitation_amount": "#175fd4",
+    "min_temp": "#50a5de",
+    "max_temp": "#ba2b00",
+    "sun_time": "#f2a200",
+}
 
 
-def render_forecast_data(data:pd.DataFrame, date: datetime, city:str = None, save=True, show=False, uid:int = 0):
+def render_forecast_data(data, date: datetime, city: str = None, save=True, uid: int = 0):
     day = Day(date)
     data = data.interpolate()
-    print(f"Rendering for {day.full_date}")
-    colormap = {"Foreca": "forestgreen", "Gismeteo": "blue", "Openmeteo": "orangered"}
-    fig, ax1 = plt.subplots(figsize=(6, 5))
-    x_axis = data["time"]
 
-    temps = data['temperature']
-    # temp_labels = [n.split("_")[0] for n in temps.columns]
-    # rains = data.filter(regex="_precipitation", axis=1)
-    # rain_labels = [n.split("_")[0] for n in rains.columns]
-
-    plt.plot(x_axis, data['temperature'], color=colormap["Openmeteo"], label="Openmeteo", zorder=4)
-
-    sunspan = day.suntime
-    plt.axvspan(sunspan[0], sunspan[1], alpha=0.3, color="#ebbf2f", zorder=0)
-    ax1.set_xlabel("Время, ч")
-    ax1.set_ylabel("Температура, °C")
-    plt.legend()
-
-    bottom = np.min(temps) - 5
-
-    mean_prec = data["precipitation"]
-    prec_count = np.count_nonzero(mean_prec)
-    prec_per_hour = 0 if prec_count == 0 else sum(mean_prec) / prec_count
-    precipitation_exists = prec_per_hour > 0.1
-
-    if not precipitation_exists:
-        try:
-            plt.ylim(bottom=bottom)
-        except:
-            print("Something strange with limits")
-            bottom = np.min(data.filter(regex=f'_temperature$').mean(axis=1))
-
-    if precipitation_exists:
-        bottom -= 4
-
-        bar_width = 1
-        shift = 0
-
-        plt.bar(x_axis, mean_prec, bar_width, bottom=bottom,
-                color=colormap["Openmeteo"], zorder=4, linewidth=0)
-        plt.plot(x_axis, [bottom] * 24, color="black", zorder=5)
-
-        ax2 = ax1.secondary_yaxis("right", functions=(lambda x: (x - bottom), lambda x: x - bottom))
-        ax2.set_ylabel("Осадки, мм")
-
-    lower_x = np.argmin(temps)
-    higher_x = np.argmax(temps)
-    lower_y = round(temps[lower_x])
-    higher_y = round(temps[higher_x])
-    plt.hlines([lower_y, higher_y], [0, 0], [lower_x, higher_x], linestyle=(5, (10, 3)), color=[0.4] * 3, linewidth=1,
-               zorder=3)
-    ticks = plt.yticks()[0]
-    ticks = check_and_add_numbers(ticks, [lower_y, higher_y])
-    plt.yticks(ticks)
-
-    plt.grid(which="both", color="lightgray")
-    plt.xlim(0, 23)
-    plt.xticks(x_axis)
-    plt.title(f"Прогноз на {day.accs_day_name}, {day.D_month}", y=1.07)
-    if city: plt.suptitle(city, fontsize='medium', y=0.92)
-
-    path = f"Images/{day.short_date}_{uid}.png"
-
+    # Agg backend if saving
     if save:
-        plt.savefig(path, bbox_inches="tight", dpi=600)
-    if show:
+        matplotlib.use('Agg')
+
+    fig, ax1 = plt.subplots(figsize=(8, 6))
+    x = data["hour"]
+    temps = data["temperature"]
+
+    # — 1) condition bands —
+    if "weathercode" in data:
+        for hr, code in zip(x, data["weathercode"].astype(int)):
+            cat = WEATHER_CAT.get(code, "overcast")
+            ax1.axvspan(hr - 0.5, hr + 0.5,
+                        facecolor=COLORS[cat], alpha=0.8, zorder=0)
+
+    # — 3) temperature line —
+    temp_line = ax1.plot(x, temps,
+                         color=COLORS["temp_line"],
+                         linewidth=2.5,
+                         label="Температура, °C",
+                         zorder=4)[0]
+
+    # x-axis formatting
+    ax1.set_xlim(-0.5, 23.5)
+    ax1.set_xticks(range(0, 24, 2))
+    ax1.set_xticklabels([f"{h:02d}:00" for h in range(0, 24, 2)])
+    ax1.set_xlabel("Часы")
+
+    # — 4) precipitation bars (if any) —
+    prec = data["precipitation"]
+    has_prec = prec.sum() > 0.1
+    if has_prec:
+        bottom = temps.min() - 6
+        prec_bars = ax1.bar(x, prec,
+                            width=0.8,
+                            bottom=bottom,
+                            label="Осадки, мм",
+                            color=COLORS["precipitation_amount"],
+                            alpha=0.8,
+                            zorder=3)
+        ax1.hlines(bottom, -1,24, color=COLORS['temp_line'], alpha=0.8)
+        ax2 = ax1.twinx()
+        ax2.set_ylim(0, prec.max() * 1.2)
+        ax2.set_ylabel("Осадки, мм", rotation=270, labelpad=15)
+        ax2.grid(False)
+    else:
+        ax1.set_ylim(temps.min() - 3, temps.max() + 3)
+
+    # — 5) min/max horizontal lines —
+    lo_i, hi_i = int(temps.idxmin()), int(temps.idxmax())
+    lo_t, hi_t = temps.min(), temps.max()
+    ax1.hlines([lo_t, hi_t], -1, [lo_i, hi_i],
+               linestyles="--",
+               linewidth=1,
+               colors=[COLORS['min_temp'], COLORS['max_temp']],
+               zorder=2)
+
+    handles = []
+    labels = []
+
+    # — 6) sunrise/sunset vertical lines —
+    ymin, ymax = ax1.get_ylim()
+    sun_start, sun_end = day.suntime
+    for xc in (sun_start, sun_end):
+        ax1.vlines(xc, ymin=ymin, ymax=ymax+1,
+                   color=COLORS['sun_time'], linestyle='dotted', linewidth=4, zorder=1)
+
+
+
+    y_min, y_max = ax1.get_ylim()
+    # one tick per degree, rounded
+    y_ticks = np.arange(np.floor(y_min), np.ceil(y_max), 1)
+    ax1.set_yticks(y_ticks)
+
+
+    # temp line
+    handles.append(lines.Line2D([], [], color=COLORS['temp_line'], linewidth=2.5))
+    labels.append("Темп., °C")
+
+    # precipitation
+    if has_prec:
+        handles.append(patches.Patch(facecolor=COLORS['precipitation_amount'], alpha=0.8))
+        labels.append("Осадки, мм")
+
+        # Add sunrise/sunset line handle for legend
+        handles.append(lines.Line2D([], [], color=COLORS['sun_time'], linestyle='dotted', linewidth=4))
+        labels.append("Световой день")
+
+    # weather conditions
+    for cat in set(WEATHER_CAT.values()):
+        handles.append(patches.Patch(facecolor=COLORS[cat], alpha=0.9))
+        # human‑friendly label:
+        name = {
+            "clear": "Ясно",
+            "partly_cloudy": "Облачно с прояснениями",
+            "overcast": "Пасмурно"
+        }[cat]
+        labels.append(name)
+
+    ax1.legend(handles, labels,
+               loc="best",
+               frameon=True,
+               fontsize='medium',
+               framealpha=0.95,
+               handlelength=3,  # shorten line length
+               handletextpad=0.5,  # tighter text
+               borderpad=0.4,  # reduce frame padding
+               labelspacing=0.4,  # less vertical space between entries
+               borderaxespad=1)
+
+    # grid, titles
+    ax1.grid(True, linestyle=":", linewidth=1, alpha=1, zorder=0)
+    main_title = f"{day.accs_day_name.capitalize()}, {day.D_month}"
+    fig.suptitle(city or "", y=0.95, fontsize=12, fontweight='bold')
+    ax1.set_title(f"Прогноз на {main_title}", fontsize=14, fontweight='bold')
+
+    # save/show
+    path = f"Images/{day.short_date}_{uid}.png"
+    if save:
+        fig.savefig(path, bbox_inches="tight", dpi=300)
+    else:
         plt.show()
-    plt.close()
+
+    plt.close(fig)
     return {"path": path, "day": day}
