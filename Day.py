@@ -1,11 +1,11 @@
 import locale
 from datetime import datetime, timedelta, timezone
-from typing import Union
+
 from suntime import Sun
 
 from helpers import inflect, my_point
 
-locale.setlocale(locale.LC_TIME, 'ru_RU')
+locale.setlocale(locale.LC_TIME, 'ru_RU.UTF-8')
 
 
 class Day:

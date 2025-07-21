@@ -36,7 +36,7 @@ def write_json(data: dict, json_path: Union[Path, str])->None:
         json.dump(data, file, ensure_ascii=False, indent=4)
 
 
-def inflect(word, case: Literal["accs", "gent"]) -> str:
+def inflect(word, case: str) -> str:
     return morph.parse(word)[0].inflect({case}).word
 
 

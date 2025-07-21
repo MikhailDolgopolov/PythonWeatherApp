@@ -1,15 +1,11 @@
-import time
 from datetime import datetime
-
 from typing import Self
 
 import pandas as pd
-
-from Geography.CityNames import default_city
 from geopy.distance import geodesic
 
+from Geography.CityNames import default_city
 from Geography.Place import Place
-
 from Parsers.OpenmeteoParser import OpenmeteoParser
 
 pd.set_option('display.width', 200)  # Increase the width to 200 characters
