@@ -5,6 +5,7 @@ import pandas as pd
 from geopy.distance import geodesic
 
 from Geography.CityNames import default_city
+from Geography.Geography import get_closest_city_matches
 from Geography.Place import Place
 from Parsers.OpenmeteoParser import OpenmeteoParser
 
@@ -14,10 +15,10 @@ pd.set_option('display.max_colwidth', 50)  # Set the max column width to 50 char
 
 
 class Forecast:
-    def __init__(self, default_city: str = "Лыткарино, Московская область"):
-        # by default, load for your home point
-        self.parser = OpenmeteoParser()
-        self.place_name = default_city
+    def __init__(self, starting_city: str = "Лыткарино, Московская область"):
+        point = Place(starting_city)
+        self.parser = OpenmeteoParser.from_place(point)
+        self.place_name = point.display_name
 
     def fetch_forecast(self, date: datetime) -> pd.DataFrame:
         return self.parser.get_weather(date)

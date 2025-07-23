@@ -5,7 +5,7 @@ from suntime import Sun
 
 from helpers import inflect, my_point
 
-locale.setlocale(locale.LC_TIME, 'ru_RU.UTF-8')
+locale.setlocale(locale.LC_TIME, 'ru_RU')
 
 
 class Day:

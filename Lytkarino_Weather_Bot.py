@@ -3,6 +3,8 @@ import re
 import asyncio
 import logging
 from datetime import datetime, timedelta, date
+from pprint import pprint
+from typing import List, Tuple
 from warnings import filterwarnings
 
 import urllib3
@@ -40,9 +42,7 @@ urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
 TOKEN = read_json("secrets.json")["telegram_token"]
 logger = logging.getLogger(__name__)
 
-# Conversation states
-CHOOSING_SETTING, R_SETTINGS, T_SETTINGS = range(3)
-CHOOSING_DAY, REPEAT, CHOOSING_CITY = range(3, 6)
+CHOOSING_DAY, REPEAT, CHOOSING_CITY, CHOOSING_POINT = range(4)
 STOP_WORD = "OK"
 EMPTY = "[ пусто ]"
 
@@ -50,7 +50,6 @@ EMPTY = "[ пусто ]"
 def reset_data(context: ContextTypes.DEFAULT_TYPE):
     context.chat_data.clear()
     context.chat_data["forecast"] = Forecast()
-    context.chat_data["city"] = "Лыткарино, Московская область"
 
 
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
@@ -88,21 +87,23 @@ async def send(
 ) -> int:
     chat_id = thing.effective_chat.id
     loading = await context.bot.send_message(chat_id, "Это может занять некоторое время...")
-    if "city" not in context.chat_data or "forecast" not in context.chat_data:
+    if "forecast" not in context.chat_data:
         reset_data(context)
 
     forecast: Forecast = context.chat_data["forecast"]
     pic = render_forecast_data(
         forecast.fetch_forecast(forecast_date),
         forecast_date,
-        city=context.chat_data.get("city", None),
+        city=forecast.place_name,
         uid=chat_id,
     )
 
     caption = forecast.last_updated(forecast_date).strftime(
         "Данные в последний раз обновлены %d.%m.%Y, в %H:%M"
     )
-    await context.bot.send_photo(chat_id=chat_id, photo=pic["path"], caption=caption)
+    await context.bot.send_photo(chat_id=chat_id, photo=pic["path"],
+                                 # caption=caption
+                                 )
     await loading.delete()
     os.remove(pic["path"])
 
@@ -158,32 +159,52 @@ async def handle_again(update: Update, context: ContextTypes.DEFAULT_TYPE) -> in
 
 
 async def find_city(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
+    loading = await context.bot.send_message(update.effective_chat.id, "Подождите…")
     text = update.message.text
     matches = get_closest_city_matches(text)
-    loading = await update.message.reply_text("Подождите...")
+
     if not matches:
         await loading.delete()
         await context.bot.send_message(
             update.effective_chat.id,
-            f"Не получилось распознать '{text}' как город."
+            f"Не получилось распознать «{text}» как город."
         )
-        return await days(
-            update, context,
-            text=f"Выберите день для прогноза в {context.chat_data.get('city', '')}:"
-        )
+        # send them back to the day picker instead of ending
+        return CHOOSING_CITY
 
-    coords = [f"{loc.latitude},{loc.longitude}" for loc in matches]
-    addresses = []
+    # build (coord, label) pairs
+    choices: List[Tuple[str, str]] = []
     for loc in matches:
-        addr = loc.raw["address"]
-        name = addr.get("city") or addr.get("town") or addr.get("village") or addr.get("suburb")
+        lat, lon = loc.latitude, loc.longitude
+        coord = f"{lat},{lon}"
+        addr = loc.raw.get("address", {})
+        name = addr.get("city") or addr.get("town") or addr.get("village") or addr.get("suburb") or loc.raw.get("name")
         region = addr.get("state") or addr.get("region") or addr.get("county")
         country = addr.get("country")
-        addresses.append(f"{name}, {region}, {country}")
+        if not name:
+            continue  # skip if we really have no name at all
+        parts = [name]
+        if region:  parts.append(region)
+        if country: parts.append(country)
+        label = ", ".join(parts)
+        choices.append((coord, label))
 
-    context.chat_data["cities_select"] = dict(zip(coords, addresses))
-    keyboard = [[InlineKeyboardButton(addresses[i], callback_data=coords[i])]
-                for i in range(len(coords))]
+    if not choices:
+        await loading.delete()
+        await context.bot.send_message(
+            update.effective_chat.id,
+            "Ничего подходящего не нашлось, попробуйте точнее."
+        )
+        return await days(update, context)
+
+    # store mapping
+    context.chat_data["cities_select"] = {c: l for c, l in choices}
+
+    # build keyboard from choices
+    keyboard = [
+        [InlineKeyboardButton(label, callback_data=coord)]
+        for coord, label in choices
+    ]
 
     await loading.delete()
     await context.bot.send_message(
@@ -202,14 +223,13 @@ async def handle_city(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int
     if not address:
         return await days(update, context)
     await query.edit_message_text(f"Вы выбрали город: {address}")
-    # update forecast and city
-    context.chat_data["city"] = address
+    # update forecast
     context.chat_data["forecast"] = context.chat_data["forecast"].find_city(address)
     return await days(update, context)
 
 
 async def get_city(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
-    city = context.chat_data.get("city", "Лыткарино, Московская область")
+    city = context.chat_data['forecast'].place_name
     await update.message.reply_text(f"В данный момент выбран город {city}")
 
 
@@ -223,6 +243,7 @@ async def ask_point(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
     if isinstance(result, str):
         await update.message.reply_text(result)
         return ConversationHandler.END
+
     if isinstance(result, float):
         keyboard = [
             InlineKeyboardButton(STOP_WORD, callback_data=text),
@@ -233,6 +254,8 @@ async def ask_point(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
             reply_markup=InlineKeyboardMarkup([keyboard])
         )
         return REPEAT
+    else:
+        return ConversationHandler.END
 
 
 async def set_point(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
@@ -244,7 +267,7 @@ async def set_point(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
 
     coords = query.data
     context.chat_data["forecast"].set_openmeteo_point(coords)
-    place = context.chat_data["forecast"].place.full_str()
+    place = context.chat_data["forecast"].place_name
     await query.edit_message_text(f"Точка установлена: {place}")
     return await days(update, context)
 
@@ -254,7 +277,7 @@ def main() -> None:
     app = Application.builder().token(TOKEN).persistence(persistence).build()
 
     app.add_handler(CommandHandler("start", start))
-    app.add_handler(MessageHandler(filters.Regex(re.compile("город", re.IGNORECASE)), get_city))
+    app.add_handler(MessageHandler(filters.Regex(re.compile(r"\bгород\b", re.IGNORECASE)), get_city))
     app.add_handler(MessageHandler(filters.Regex(re.compile("прогноз|погода", re.IGNORECASE)), days))
 
     app.add_handler(
@@ -271,18 +294,18 @@ def main() -> None:
     )
 
     coord_pattern = r"^-?\d{1,2}\.\d+,-?\d{1,2}\.\d+$"
-    app.add_handler(MessageHandler(filters.Regex(coord_pattern), ask_point))
-    app.add_handler(CallbackQueryHandler(set_point, pattern=f"({coord_pattern}|cancel)"))
 
     conv = ConversationHandler(
         entry_points=[
-            MessageHandler(filters.TEXT & ~filters.COMMAND, find_city),
-            CallbackQueryHandler(handle_again, pattern="^again$")
+            MessageHandler(filters.Regex(r'.{2,}') & ~filters.COMMAND, find_city),
+            CallbackQueryHandler(handle_again, pattern="^again$"),
+            MessageHandler(filters.Regex(coord_pattern), ask_point)
         ],
         states={
             CHOOSING_DAY: [CallbackQueryHandler(handle_day, pattern=r"^\d{6,8}$")],
             REPEAT: [CallbackQueryHandler(set_point, pattern=f"^{coord_pattern}$|^cancel$")],
             CHOOSING_CITY: [CallbackQueryHandler(handle_city)],
+            CHOOSING_POINT: [CallbackQueryHandler(set_point, pattern=f"({coord_pattern}|cancel)")]
         },
         fallbacks=[
             MessageHandler(filters.TEXT & ~filters.COMMAND, find_city),

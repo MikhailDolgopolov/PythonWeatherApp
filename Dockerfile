@@ -16,10 +16,10 @@ RUN ln -snf /usr/share/zoneinfo/$TZ /etc/localtime && echo $TZ > /etc/timezone
 # Install locales and generate the desired locale
 RUN apt update && apt install -y --no-install-recommends locales && \
     rm -rf /var/lib/apt/lists/* && \
-    sed -i '/^#.* ru_RU.UTF-8 /s/^#//' /etc/locale.gen && \
+    sed -i '/^#.* ru_RU /s/^#//' /etc/locale.gen && \
     locale-gen && \
-    echo "LANG=ru_RU.UTF-8" >> /etc/default/locale && \
-    echo "LC_ALL=ru_RU.UTF-8" >> /etc/default/locale
+    echo "LANG=ru_RU" >> /etc/default/locale && \
+    echo "LC_ALL=ru_RU" >> /etc/default/locale
 
 # Set locale environment variables
 ENV LANG=ru_RU.UTF-8 \
@@ -33,7 +33,7 @@ USER myuser
 COPY requirements.txt .
 
 # Install dependencies
-RUN pip install --no-cache-dir -r requirements.txt
+RUN pip install -r requirements.txt
 
 # Copy the bot's source code into the container
 COPY --chown=myuser:myuser . .

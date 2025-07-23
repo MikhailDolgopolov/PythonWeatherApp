@@ -4,6 +4,9 @@ from matplotlib import pyplot as plt, patches, lines
 import seaborn as sns
 
 from datetime import datetime
+
+from scipy.stats import alpha
+
 from Day import Day
 
 plt.style.use('seaborn-v0_8-whitegrid')
@@ -37,6 +40,9 @@ def render_forecast_data(data, date: datetime, city: str = None, save=True, uid:
     x = data["hour"]
     temps = data["temperature"]
 
+    plot_bottom = temps.min()-5
+    plot_top = temps.max()+1
+
     # — 1) condition bands —
     if "weathercode" in data:
         for hr, code in zip(x, data["weathercode"].astype(int)):
@@ -59,23 +65,31 @@ def render_forecast_data(data, date: datetime, city: str = None, save=True, uid:
 
     # — 4) precipitation bars (if any) —
     prec = data["precipitation"]
-    has_prec = prec.sum() > 0.1
+    has_prec = prec.rolling(window=2, center=True).mean().max() >= 0.5
+    bar_bottom = plot_bottom + 0.5
+    ax2 = ax1.twinx()
     if has_prec:
-        bottom = temps.min() - 6
-        prec_bars = ax1.bar(x, prec,
+
+        ax2.bar(x, prec,
                             width=0.8,
-                            bottom=bottom,
+                            # bottom=bar_bottom,
                             label="Осадки, мм",
                             color=COLORS["precipitation_amount"],
                             alpha=0.8,
                             zorder=3)
-        ax1.hlines(bottom, -1,24, color=COLORS['temp_line'], alpha=0.8)
-        ax2 = ax1.twinx()
-        ax2.set_ylim(0, prec.max() * 1.2)
+        ax2.hlines(0, -1,24, color=COLORS['temp_line'], alpha=0.8, zorder=0)
+
         ax2.set_ylabel("Осадки, мм", rotation=270, labelpad=15)
         ax2.grid(False)
+        vis_prec_amt = max(3, prec.max())
+        ax2.set_ylim(-vis_prec_amt*0.1, vis_prec_amt)
     else:
-        ax1.set_ylim(temps.min() - 3, temps.max() + 3)
+        ax2.text(12, bar_bottom, "Осадков не ожидается", ha='center', va='bottom', fontsize=16, alpha=0.6)  # Add a label
+
+    sun_start, sun_end = day.suntime
+    for xc in (sun_start, sun_end):
+        ax1.vlines(xc, ymin=plot_bottom, ymax=plot_top,
+                   color=COLORS['sun_time'], linestyle='dotted', linewidth=4, zorder=1)
 
     # — 5) min/max horizontal lines —
     lo_i, hi_i = int(temps.idxmin()), int(temps.idxmax())
@@ -88,15 +102,6 @@ def render_forecast_data(data, date: datetime, city: str = None, save=True, uid:
 
     handles = []
     labels = []
-
-    # — 6) sunrise/sunset vertical lines —
-    ymin, ymax = ax1.get_ylim()
-    sun_start, sun_end = day.suntime
-    for xc in (sun_start, sun_end):
-        ax1.vlines(xc, ymin=ymin, ymax=ymax+1,
-                   color=COLORS['sun_time'], linestyle='dotted', linewidth=4, zorder=1)
-
-
 
     y_min, y_max = ax1.get_ylim()
     # one tick per degree, rounded
@@ -132,7 +137,7 @@ def render_forecast_data(data, date: datetime, city: str = None, save=True, uid:
                loc="best",
                frameon=True,
                fontsize='medium',
-               framealpha=0.95,
+               framealpha=0.93,
                handlelength=3,  # shorten line length
                handletextpad=0.5,  # tighter text
                borderpad=0.4,  # reduce frame padding
@@ -141,14 +146,16 @@ def render_forecast_data(data, date: datetime, city: str = None, save=True, uid:
 
     # grid, titles
     ax1.grid(True, linestyle=":", linewidth=1, alpha=1, zorder=0)
-    main_title = f"{day.accs_day_name.capitalize()}, {day.D_month}"
-    fig.suptitle(city or "", y=0.95, fontsize=12, fontweight='bold')
-    ax1.set_title(f"Прогноз на {main_title}", fontsize=14, fontweight='bold')
+    ax1.text(x=12, y=plot_top+0.2, s=city or "", fontsize=12, ha="center", va="bottom")
 
+    main_title = f"{day.accs_day_name}, {day.D_month}"
+    ax1.set_title(f"Прогноз на {main_title}\n\n", fontsize=14, fontweight='bold', y=0.96)
+
+    ax1.set_ylim(plot_bottom, plot_top)
     # save/show
     path = f"Images/{day.short_date}_{uid}.png"
     if save:
-        fig.savefig(path, bbox_inches="tight", dpi=300)
+        fig.savefig(path, bbox_inches="tight", dpi=400)
     else:
         plt.show()
 

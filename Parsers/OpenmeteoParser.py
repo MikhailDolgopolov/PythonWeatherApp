@@ -7,6 +7,7 @@ import pandas as pd
 import requests_cache
 from retry_requests import retry
 
+from Geography import Place
 from Geography.Geography import get_coordinates
 from MetadataController import MetadataController
 from Parsers.SeekParser import SeekParser
@@ -25,17 +26,14 @@ openmeteo = openmeteo_requests.Client(session=retry_session)
 class OpenmeteoParser(SeekParser):
     def __init__(
         self,
-        latitude: float = None,
-        longitude: float = None,
+        latitude: float,
+        longitude: float,
         timezone: str = "Europe/Moscow",
         hourly_vars: List[str] = None,
         daily_vars: List[str] = None,
         forecast_days: int = 8,
     ):
         super().__init__(name="Openmeteo")
-        # initial point
-        if latitude is None or longitude is None:
-            latitude, longitude = my_point()
         self.timezone = timezone
         self.hourly_vars = hourly_vars or ["temperature_2m", "precipitation", "wind_speed_10m", 'weathercode']
         self.daily_vars = daily_vars or ["sunrise", "sunset", "weathercode"]
@@ -44,8 +42,19 @@ class OpenmeteoParser(SeekParser):
         self._set_base_params(latitude, longitude)
         self._last_reload: datetime = datetime.min
         self._full_df: pd.DataFrame = pd.DataFrame()
-        # self._daily_df: pd.DataFrame = pd.DataFrame()
         self._reload_if_needed(force=True)
+
+    @classmethod
+    def from_place(cls, place: Place, **kwargs):
+        """Alternative constructor using a Place"""
+        lat, lon = place.coords
+        return cls(lat, lon, **kwargs)
+
+    @classmethod
+    def from_default_location(cls, **kwargs):
+        """Alternative constructor using my_point"""
+        lat, lon = my_point()
+        return cls(lat, lon, **kwargs)
 
     def _set_base_params(self, lat: float, lon: float):
         self._params = {
