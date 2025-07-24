@@ -95,7 +95,8 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     await asyncio.sleep(1)
     await context.bot.send_message(
         chat_id,
-        "При любых проблемах всегда можно воспользоваться командой /cancel, чтобы начать заново."
+        "Вы можете узнать точку, выбранную для прогноза в данный момент, отправив сообщение со словом 'город'."
+        "При любых проблемах всегда можно воспользоваться командой /cancel, чтобы начать работу с ботом заново."
     )
     await asyncio.sleep(2)
     return await get_city(update, context)
@@ -313,7 +314,7 @@ def main() -> None:
 
     app.add_handler(CommandHandler("start", start))
     app.add_handler(MessageHandler(filters.Regex(re.compile(r"\bгород\b", re.IGNORECASE)), get_city))
-    app.add_handler(MessageHandler(filters.Regex(re.compile("прогноз|погода", re.IGNORECASE)), days))
+    app.add_handler(MessageHandler(filters.Regex(re.compile("r\bпрогноз\b|\bпогода\b", re.IGNORECASE)), days))
 
     app.add_handler(
         MessageHandler(
