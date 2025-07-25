@@ -1,6 +1,7 @@
-# Lytkarino Weather Bot
+# OpenMeteo Weather Bot
 
 Небольшой Telegram‑бот для просмотра прогноза погоды в любом городе или по координатам.
+TG: @openmeteo_weather_bot
 
 ## Функциональность
 - Отправьте “сегодня” или “завтра” — получите график с:
