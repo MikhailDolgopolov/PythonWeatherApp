@@ -1,11 +1,11 @@
 from datetime import datetime
-from typing import Self
+from typing import Self, Tuple
 
 import pandas as pd
 from geopy.distance import geodesic
 
 from Geography.CityNames import default_city
-from Geography.Geography import get_closest_city_matches
+from Geography.Geography import get_closest_city_matches, what_is_there
 from Geography.Place import Place
 from Parsers.OpenmeteoParser import OpenmeteoParser
 
@@ -16,9 +16,19 @@ pd.set_option('display.max_colwidth', 50)  # Set the max column width to 50 char
 
 class Forecast:
     def __init__(self, starting_city: str = "Москва"):
-        point = Place(starting_city)
-        self.parser = OpenmeteoParser.from_place(point)
-        self.place_name = point.display_name
+        self._place = Place(starting_city)
+        self.parser = OpenmeteoParser.from_place(self._place)
+
+    @property
+    def place_name(self) -> str:
+        return self._place.display_name
+
+    @property
+    def current_place(self) -> Place:
+        return self._place
+
+    def change_current_place(self, place: Place):
+        self._place = place
 
     def fetch_forecast(self, date: datetime) -> pd.DataFrame:
         return self.parser.get_weather(date)
@@ -27,17 +37,11 @@ class Forecast:
         return self.parser.get_last_forecast_update(date)
 
     def find_city(self, city: str) -> Self:
-        self.place_name = city
+        self._place = Place(city)
         self.parser.find_city(city)
         return self
 
-    def point_info(self, point_str: str) -> float:
-        """Distance in km between current place and point_str='lat,lon'."""
-        lat, lon = map(float, point_str.split(","))
-        # you’ll need to store self.place_coords when find_city is called:
-        src_coords = (self.parser._params["latitude"], self.parser._params["longitude"])
-        return round(geodesic(src_coords, (lat, lon)).km, 1)
-
-    def set_openmeteo_point(self, point_str: str):
-        lat, lon = map(float, point_str.split(","))
-        self.parser.set_params((lat, lon))
+    def new_point_info(self, coords: Tuple[float, float]) -> Tuple[Place, float]:
+        self.parser.set_params(coords)
+        place = Place(what_is_there(coords))
+        return place, geodesic(self.current_place.coords, coords).km

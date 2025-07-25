@@ -3,12 +3,12 @@ import re
 import asyncio
 import logging
 from datetime import datetime, timedelta, date
-from pprint import pprint
+# from pprint import pprint
 from typing import List, Tuple
 from warnings import filterwarnings
 
 import urllib3
-from telegram import Update, InlineKeyboardMarkup, InlineKeyboardButton, Message
+from telegram import Update, InlineKeyboardMarkup, InlineKeyboardButton, Message, CallbackQuery
 from telegram.ext import (
     Application,
     PicklePersistence,
@@ -47,9 +47,14 @@ STOP_WORD = "OK"
 EMPTY = "[ пусто ]"
 
 
-def reset_data(context: ContextTypes.DEFAULT_TYPE):
+async def reset_data(update: Update, context: ContextTypes.DEFAULT_TYPE):
     context.chat_data.clear()
     context.chat_data["forecast"] = Forecast()
+    await context.bot.send_message(
+        update.effective_chat.id,
+        "Готов к работе."
+    )
+    return await get_city(update, context)
 
 
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
@@ -66,7 +71,6 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
         "Отправьте любое сообщение со словами 'сегодня' или 'завтра', и я отправлю соответствующий прогноз.\n"
         "Чтобы быстро выбрать другой день, отправьте 'погода' или 'прогноз'."
     )
-    reset_data(context)
     await asyncio.sleep(1)
     await context.bot.send_message(chat_id, "Вот пример моего прогноза:")
     await asyncio.sleep(1)
@@ -102,17 +106,25 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
         chat_id,
         "При любых проблемах всегда можно воспользоваться командой /cancel, чтобы начать работу с ботом заново."
     )
-    await asyncio.sleep(2)
-    return await get_city(update, context)
+    return await reset_data(update, context)
+
+
+async def error_handler(update: object, context: ContextTypes.DEFAULT_TYPE):
+    logger.exception("Caught unhandled error")
+    if isinstance(update, Update) and update.effective_chat:
+        await context.bot.send_message(
+            update.effective_chat.id,
+            "Упс, что‑то пошло не так — попробуйте еще раз или /cancel."
+        )
 
 
 async def send(
         thing: Update | Message, context: ContextTypes.DEFAULT_TYPE, forecast_date: datetime
 ) -> int:
     chat_id = thing.effective_chat.id
-    loading = await context.bot.send_message(chat_id, "Это может занять некоторое время...")
     if "forecast" not in context.chat_data:
-        reset_data(context)
+        await reset_data(thing, context)
+    loading = await context.bot.send_message(chat_id, "Это может занять некоторое время...")
 
     forecast: Forecast = context.chat_data["forecast"]
     pic = render_forecast_data(
@@ -238,14 +250,13 @@ async def handle_city(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int
     query = update.callback_query
     await query.answer()
     if query.data == "cancel":
-        await context.bot.send_message(update.effective_chat.id,
-                                       "Выбор города отменён. В данный момент установлен:\n"
-                                       f"{context.chat_data['forecast'].place_name}")
+        await query.message.edit_text("Выбор города отменён.", reply_markup=None)
+        await get_city(query, context)
         return ConversationHandler.END
     coord = query.data
     address = context.chat_data["cities_select"].get(coord)
     if not address:
-        await query.edit_message_text(f"Извините, произошла ошибка")
+        await query.edit_message_text(f"Извините, при выборе этого города произошла ошибка")
         return await days(update, context)
     await query.edit_message_text(f"Вы выбрали город: {address}")
     # update forecast
@@ -253,7 +264,7 @@ async def handle_city(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int
     return await days(update, context)
 
 
-async def get_city(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+async def get_city(update: Update|CallbackQuery, context: ContextTypes.DEFAULT_TYPE) -> None:
     city = context.chat_data['forecast'].place_name
     await update.message.reply_text(f"В данный момент выбран город {city}")
 
@@ -261,26 +272,25 @@ async def get_city(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
 async def ask_point(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
     text = update.message.text.strip()
     loading = await update.message.reply_text("Точка получена. Подождите...")
-    forecast: Forecast = context.chat_data.get("forecast", Forecast())
-    result = forecast.point_info(text)
+    forecast: Forecast = context.chat_data.get("forecast")
+    coords_list = list(map(float, re.split(r"\s*,\s*", text)))
+    coords = coords_list[0], coords_list[1]
+    if not coords:
+        await loading.delete()
+    potential_place, distance = forecast.new_point_info(coords)
+    context.chat_data['potential_place'] = potential_place
     await loading.delete()
 
-    if isinstance(result, str):
-        await update.message.reply_text(result)
-        return ConversationHandler.END
-
-    if isinstance(result, float):
-        keyboard = [
-            InlineKeyboardButton(STOP_WORD, callback_data=text),
-            InlineKeyboardButton("Отменить", callback_data="cancel")
-        ]
-        await update.message.reply_text(
-            f"Расстояние от этой точки до выбранной сейчас — {result:.1f} км. Утвердить точку?",
-            reply_markup=InlineKeyboardMarkup([keyboard])
-        )
-        return REPEAT
-    else:
-        return ConversationHandler.END
+    keyboard = [
+        InlineKeyboardButton(STOP_WORD, callback_data=text),
+        InlineKeyboardButton("Отменить", callback_data="cancel")
+    ]
+    await update.message.reply_text(f"Там находится {potential_place.display_name}.")
+    await update.message.reply_text(
+        f"Расстояние от этой точки до выбранной сейчас — {distance:.1f} км. Утвердить точку?",
+        reply_markup=InlineKeyboardMarkup([keyboard])
+    )
+    return REPEAT
 
 
 async def set_point(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
@@ -290,8 +300,7 @@ async def set_point(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
         await query.edit_message_text("Точка не была установлена.")
         return ConversationHandler.END
 
-    coords = query.data
-    context.chat_data["forecast"].set_openmeteo_point(coords)
+    context.chat_data["forecast"].change_current_place(context.chat_data["potential_place"])
     place = context.chat_data["forecast"].place_name
     await query.edit_message_text(f"Точка установлена: {place}")
     return await days(update, context)
@@ -302,13 +311,13 @@ async def generic_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
     await update.callback_query.edit_message_text(
         "Извините, это сообщение устарело. Давайте начнём заново."
     )
-    reset_data(context)
+    await reset_data(update, context)
     return ConversationHandler.END
 
 
 async def cancel(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
-    await update.message.reply_text("Отменено. Чтобы начать заново, введите /start.")
-    reset_data(context)
+    await update.message.reply_text("Возможно, что-то пошло не так. Попробуем начать заново.")
+    await reset_data(update, context)
     return ConversationHandler.END
 
 
@@ -333,13 +342,13 @@ def main() -> None:
         )
     )
 
-    coord_pattern = r"^-?\d{1,2}\.\d+,-?\d{1,2}\.\d+$"
+    coord_pattern = r"-?\d{1,2}\.\d+,\s*-?\d{1,2}\.\d+"
 
     conv = ConversationHandler(
         entry_points=[
-            MessageHandler(filters.Regex(r'.{2,}') & ~filters.COMMAND, find_city),
+            MessageHandler(filters.Regex(r'^\D*$') & ~filters.COMMAND, find_city),
+            MessageHandler(filters.Regex(coord_pattern), ask_point),
             CallbackQueryHandler(handle_again, pattern="^again$"),
-            MessageHandler(filters.Regex(coord_pattern), ask_point)
         ],
         states={
             CHOOSING_DAY: [CallbackQueryHandler(handle_day, pattern=r"^\d{6,8}$")],
@@ -348,14 +357,14 @@ def main() -> None:
             CHOOSING_POINT: [CallbackQueryHandler(set_point, pattern=f"({coord_pattern}|cancel)")]
         },
         fallbacks=[
-            CommandHandler("cancel", cancel),
-            CallbackQueryHandler(handle_again, pattern="^again$")
+            MessageHandler(filters.ALL, cancel),
         ],
         allow_reentry=True,
     )
     app.add_handler(conv)
     app.add_handler(CommandHandler("cancel", cancel))
     app.add_handler(CallbackQueryHandler(generic_callback))
+    app.add_error_handler(error_handler)
     app.run_polling(allowed_updates=Update.ALL_TYPES)
 
 

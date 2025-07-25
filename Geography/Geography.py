@@ -126,7 +126,7 @@ def distance_between_places(point: str, target: str) -> float:
         return float('inf')
 
 
-def what_is_there(point: Union[str, Tuple[float, float]]) -> Optional[Location]: #Changed return type to object
+def what_is_there(point: Union[str, Tuple[float, float]]) -> Optional[Location]:
     """Reverse geocodes a point and returns the most relevant place."""
     geolocator = Nominatim(user_agent=USER_AGENT, timeout=TIMEOUT)
     try:
@@ -151,6 +151,6 @@ def what_is_there(point: Union[str, Tuple[float, float]]) -> Optional[Location]:
 
         return places[0]
     except Exception as e:
-        print(f"Geocoding error in what_is_there: {e}")
+        print(f"Geocoding error in reverse geocoding: {e}")
         return None
 

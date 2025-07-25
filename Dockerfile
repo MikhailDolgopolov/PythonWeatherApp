@@ -1,42 +1,46 @@
-# Use the Debian Stretch Python image
-FROM python:3.11-slim
+FROM python:3.11
 
-# Set environment variables to avoid prompts from Python
+# Set environment variables
 ENV PYTHONDONTWRITEBYTECODE=1
 ENV PYTHONUNBUFFERED=1
-
-# Set the working directory in the container
-WORKDIR /data
-
-RUN mkdir -p /app/data
-# Set the timezone
 ENV TZ=Europe/Moscow
+
+# Set working directory
+WORKDIR /app
+
+# Create directories and set permissions as root
+RUN mkdir -p /app/data /app/.cache /app/Images /app/data/images
+
+# Create a non-root user
+RUN useradd -ms /bin/bash python_user && chown -R python_user:python_user /app
+
+RUN apt update && apt install -y --no-install-recommends ca-certificates \
+    curl iputils-ping && \
+    rm -rf /var/lib/apt/lists/*
+
+# Set timezone
 RUN ln -snf /usr/share/zoneinfo/$TZ /etc/localtime && echo $TZ > /etc/timezone
 
-# Install locales and generate the desired locale
+# Install locales
 RUN apt update && apt install -y --no-install-recommends locales && \
     rm -rf /var/lib/apt/lists/* && \
     sed -i '/^#.* ru_RU /s/^#//' /etc/locale.gen && \
     locale-gen && \
-    echo "LANG=ru_RU" >> /etc/default/locale && \
-    echo "LC_ALL=ru_RU" >> /etc/default/locale
+    echo "LANG=ru_RU.UTF-8" >> /etc/default/locale && \
+    echo "LC_ALL=ru_RU.UTF-8" >> /etc/default/locale
 
-# Set locale environment variables
 ENV LANG=ru_RU.UTF-8 \
     LC_ALL=ru_RU.UTF-8
 
-# Create a non-root user and switch to it
-RUN useradd -ms /bin/bash myuser
-USER myuser
-
-# Copy the requirements file to the container
+# Copy requirements and install dependencies
 COPY requirements.txt .
-
-# Install dependencies
 RUN pip install -r requirements.txt
 
-# Copy the bot's source code into the container
-COPY --chown=myuser:myuser . .
+# Switch to non-root user
+USER python_user
 
-# Command to run the bot
+# Copy the rest of the code
+COPY --chown=python_user:python_user . .
+
+# Start the bot
 CMD ["python", "Lytkarino_Weather_Bot.py"]
