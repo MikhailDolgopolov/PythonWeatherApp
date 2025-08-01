@@ -327,7 +327,7 @@ def main() -> None:
 
     app.add_handler(CommandHandler("start", start))
     app.add_handler(MessageHandler(filters.Regex(re.compile(r"\bгород\b", re.IGNORECASE)), get_city))
-    app.add_handler(MessageHandler(filters.Regex(re.compile("r\bпрогноз\b|\bпогода\b", re.IGNORECASE)), days))
+    app.add_handler(MessageHandler(filters.Regex(re.compile(r"\bпрогноз\b|\bпогода\b", re.IGNORECASE)), days))
 
     app.add_handler(
         MessageHandler(
