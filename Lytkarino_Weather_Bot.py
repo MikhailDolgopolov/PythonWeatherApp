@@ -27,7 +27,6 @@ from ForecastRendering import render_forecast_data
 from Geography.Geography import get_closest_city_matches
 from helpers import read_json
 
-# Suppress PTB warning about CallbackQueryHandler filters
 filterwarnings(action="ignore", message=r".*CallbackQueryHandler", category=PTBUserWarning)
 
 # Set up logging
@@ -299,10 +298,10 @@ async def set_point(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
     if query.data == "cancel":
         await query.edit_message_text("Точка не была установлена.")
         return ConversationHandler.END
-
+    await query.edit_message_text(f"Подождите...")
     context.chat_data["forecast"].change_current_place(context.chat_data["potential_place"])
     place = context.chat_data["forecast"].place_name
-    await query.edit_message_text(f"Точка установлена: {place}")
+    await query.edit_message_text(f"Точка установлена: {place}. Подождите...")
     return await days(update, context)
 
 
