@@ -1,0 +1,3 @@
+bot_persistence
+.cache.sqlite
+secrets.json

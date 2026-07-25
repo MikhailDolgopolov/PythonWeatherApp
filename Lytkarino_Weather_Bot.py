@@ -109,13 +109,16 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
 
 
 async def error_handler(update: object, context: ContextTypes.DEFAULT_TYPE):
-    logger.exception("Caught unhandled error")
+    logger.error(
+        "Exception while handling update",
+        exc_info=context.error
+    )
+
     if isinstance(update, Update) and update.effective_chat:
         await context.bot.send_message(
             update.effective_chat.id,
-            "Упс, что‑то пошло не так — попробуйте еще раз или /cancel."
+            "Упс, что-то пошло не так — попробуйте еще раз или /cancel."
         )
-
 
 async def send(
         thing: Update | Message, context: ContextTypes.DEFAULT_TYPE, forecast_date: datetime
