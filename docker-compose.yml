@@ -2,7 +2,7 @@ services:
   weather_bot_tg:
     build: .
     container_name: openmeteo_bot
-    restart: unless-stopped
+#    restart: unless-stopped
     network_mode: host
     dns:
       - 8.8.8.8

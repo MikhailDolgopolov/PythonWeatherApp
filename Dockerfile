@@ -15,13 +15,14 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     && rm -rf /var/lib/apt/lists/*
 
 # Russian locale
-RUN sed -i '/^#.* ru_RU.UTF-8 /s/^#//' /etc/locale.gen \
-    && locale-gen ru_RU.UTF-8 \
-    && echo "LANG=ru_RU.UTF-8" > /etc/default/locale \
-    && echo "LC_ALL=ru_RU.UTF-8" >> /etc/default/locale
+RUN apt update && apt install -y --no-install-recommends locales && \
+    sed -i 's/^# *\(ru_RU.UTF-8 UTF-8\)/\1/' /etc/locale.gen && \
+    locale-gen ru_RU.UTF-8 && \
+    update-locale LANG=ru_RU.UTF-8 LC_ALL=ru_RU.UTF-8 && \
+    rm -rf /var/lib/apt/lists/*
 
-ENV LANG=ru_RU.UTF-8 \
-    LC_ALL=ru_RU.UTF-8
+ENV LANG=ru_RU.UTF-8
+ENV LC_ALL=ru_RU.UTF-8
 
 # Timezone
 RUN ln -snf /usr/share/zoneinfo/$TZ /etc/localtime \
