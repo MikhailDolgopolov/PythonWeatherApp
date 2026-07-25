@@ -25,7 +25,6 @@ from Day import Day
 from Forecast import Forecast
 from ForecastRendering import render_forecast_data
 from Geography.Geography import get_closest_city_matches
-from helpers import read_json
 
 filterwarnings(action="ignore", message=r".*CallbackQueryHandler", category=PTBUserWarning)
 
@@ -38,7 +37,7 @@ logging.getLogger("httpx").setLevel(logging.WARNING)
 logging.getLogger("urllib3").setLevel(logging.ERROR)
 urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
 
-TOKEN = read_json("secrets.json")["telegram_token"]
+TOKEN = os.environ["TELEGRAM_TOKEN"]
 logger = logging.getLogger(__name__)
 
 CHOOSING_DAY, REPEAT, CHOOSING_CITY, CHOOSING_POINT = range(4)
